@@ -23,7 +23,7 @@ const LandingPage = ({ onEnter }) => {
             onClick={onEnter}
             className="group flex items-center justify-center gap-3 bg-indigo-600 px-10 py-5 rounded-[2.5rem] font-black text-white uppercase tracking-tight shadow-xl hover:shadow-2xl hover:bg-indigo-700 transition-all active:scale-95"
           >
-            <span>Jetzt Freundebuch Eintrag erstellen
+            <span>Freundebuch Eintrag erstellen
             </span>
             <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
           </button>
