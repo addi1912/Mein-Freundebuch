@@ -8,7 +8,7 @@ import {
   Calendar, Sparkles, PenTool, Hash, Mail, Linkedin, Mic, Square,
   AudioLines, Trophy, BarChart2, Hourglass, PawPrint, StickyNote,
   Backpack, Smartphone, Briefcase, HelpCircle, Images, Lightbulb,
-  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast
+  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
@@ -135,6 +135,11 @@ const SearchBar = ({ type, onSelect }) => {
         const res = await fetch(`https://www.cheapshark.com/api/1.0/games?title=${encodedQuery}&limit=5`);
         const data = await res.json();
         searchResults = (data || []).map(g => ({ id: `game-${g.gameID}`, title: g.external, subtitle: 'PC/Konsole', image: g.thumb?.includes('steamstatic') ? g.thumb.replace('capsule_sm_120', 'header') : g.thumb }));
+      } else if (type === 'creators') {
+        const res = await fetch(`https://de.wikipedia.org/w/api.php?action=query&generator=prefixsearch&gpssearch=${encodedQuery}&gpslimit=5&prop=pageimages|description&piprop=thumbnail&pithumbsize=400&format=json&origin=*`);
+        const data = await res.json();
+        const pages = Object.values(data.query?.pages || {});
+        searchResults = pages.sort((a, b) => (a.index || 0) - (b.index || 0)).map(p => ({ id: `creator-${p.pageid}`, title: p.title, subtitle: p.description || 'Content Creator', image: p.thumbnail?.source }));
       }
       setResults(searchResults);
     } catch (error) {
@@ -171,13 +176,13 @@ const SearchBar = ({ type, onSelect }) => {
     setOpen(false);
   };
 
-  const Icon = type === 'music' ? Music : type === 'books' ? Book : type === 'movies' ? Film : Gamepad2;
+  const Icon = type === 'music' ? Music : type === 'books' ? Book : type === 'movies' ? Film : type === 'creators' ? Video : Gamepad2;
   const customImg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%23f1f5f9'/%3E%3Cpath d='M200 150a50 50 0 1 0 0 100 50 50 0 0 0 0-100z' fill='%23cbd5e1'/%3E%3C/svg%3E";
 
   return (
     <div className="relative mb-6">
       <div className="relative">
-        <input type="text" value={term} onChange={handleInputChange} placeholder={`${type === 'music' ? 'Song' : type === 'books' ? 'Buch' : type === 'movies' ? 'Film/Serie' : 'Spiel'} suchen...`} className="w-full bg-slate-50 border-none rounded-2xl pl-12 pr-5 py-4 font-bold focus:ring-2 focus:ring-slate-500/10 text-base outline-none" />
+        <input type="text" value={term} onChange={handleInputChange} placeholder={`${type === 'music' ? 'Song' : type === 'books' ? 'Buch' : type === 'movies' ? 'Film/Serie' : type === 'creators' ? 'Creator' : 'Spiel'} suchen...`} className="w-full bg-slate-50 border-none rounded-2xl pl-12 pr-5 py-4 font-bold focus:ring-2 focus:ring-slate-500/10 text-base outline-none" />
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
           {loading ? <Loader2 className="animate-spin" size={20} /> : <Icon size={20} />}
         </div>
@@ -631,6 +636,8 @@ const App = () => {
     brawlStars: { trophies: '', favoriteBrawler: '', rank: '', friendLink: '' },
     favVideo: '',
     favPodcast: '',
+    favCreators: [],
+    setup: { images: [], components: [] },
     wishlist: [],
     topEmojis: ['', '', '', '', ''],
     duolingo: { initialStreak: '', language: '', startDate: null },
@@ -738,6 +745,8 @@ const App = () => {
         if (!parsed.brawlStars) parsed.brawlStars = { trophies: '', favoriteBrawler: '', rank: '', friendLink: '' };
         if (!parsed.favVideo) parsed.favVideo = '';
         if (!parsed.favPodcast) parsed.favPodcast = '';
+        if (!parsed.favCreators) parsed.favCreators = [];
+        if (!parsed.setup) parsed.setup = { images: [], components: [] };
         if (!parsed.wishlist) parsed.wishlist = [];
         if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
         setProfileData(parsed);
@@ -779,6 +788,8 @@ const App = () => {
             if (!parsed.brawlStars) parsed.brawlStars = { trophies: '', favoriteBrawler: '', rank: '', friendLink: '' };
             if (parsed.favVideo === undefined) parsed.favVideo = '';
             if (parsed.favPodcast === undefined) parsed.favPodcast = '';
+            if (!parsed.favCreators) parsed.favCreators = [];
+            if (!parsed.setup) parsed.setup = { images: [], components: [] };
             if (!parsed.wishlist) parsed.wishlist = [];
             if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
 
@@ -819,6 +830,8 @@ const App = () => {
     { id: 'wishlist', name: 'Wunschliste', icon: <Gift className="text-pink-500" />, desc: 'Wünsche & Links' },
     { id: 'favVideo', name: 'Lieblingsvideo', icon: <Youtube className="text-red-600" />, desc: 'Mein YouTube Favorit' },
     { id: 'favPodcast', name: 'Lieblingspodcast', icon: <Podcast className="text-green-500" />, desc: 'Mein aktueller Ohrwurm' },
+    { id: 'favCreators', name: 'Lieblings Creator', icon: <Video className="text-purple-600" />, desc: 'YouTuber & Streamer' },
+    { id: 'setup', name: 'Mein Setup', icon: <Monitor className="text-cyan-500" />, desc: 'PC, Konsole & Desk' },
     { id: 'topEmojis', name: 'Top 5 Emojis', icon: <Smile className="text-yellow-500" />, desc: 'Meine meistgenutzten Emojis' },
     { id: 'brawlStars', name: 'Brawl Stars', icon: <Skull className="text-yellow-500" />, desc: 'Trophäen & Brawler' },
     { id: 'hayday', name: 'Hay Day', icon: <Tractor className="text-yellow-600" />, desc: 'Farm Lvl & Code' }, 
@@ -864,7 +877,7 @@ const App = () => {
   };
 
   const addItem = (type, item) => {
-    const key = type === 'music' ? 'favSongs' : type === 'books' ? 'favBooks' : type === 'movies' ? 'favMovies' : type === 'games' ? 'games' : null;
+    const key = type === 'music' ? 'favSongs' : type === 'books' ? 'favBooks' : type === 'movies' ? 'favMovies' : type === 'games' ? 'games' : type === 'creators' ? 'favCreators' : null;
     if (!key) return;
     if (!profileData[key].find(i => i.id === item.id)) {
       const newItem = type === 'games' ? { ...item, playtime: '' } : item;
@@ -1138,6 +1151,46 @@ const App = () => {
     setProfileData(prev => ({ ...prev, topEmojis: newEmojis }));
   };
 
+  // --- Helpers for Setup ---
+  const addSetupComponent = () => {
+    setProfileData(prev => ({
+      ...prev,
+      setup: {
+        ...prev.setup,
+        components: [...(prev.setup?.components || []), { id: Date.now().toString(), label: '', value: '' }]
+      }
+    }));
+  };
+  const updateSetupComponent = (id, field, val) => {
+    setProfileData(prev => ({
+      ...prev,
+      setup: {
+        ...prev.setup,
+        components: prev.setup.components.map(c => c.id === id ? { ...c, [field]: val } : c)
+      }
+    }));
+  };
+  const removeSetupComponent = (id) => {
+    setProfileData(prev => ({
+      ...prev,
+      setup: { ...prev.setup, components: prev.setup.components.filter(c => c.id !== id) }
+    }));
+  };
+  const handleSetupImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    const currentCount = profileData.setup?.images?.length || 0;
+    const allowedCount = 5 - currentCount;
+    if (allowedCount <= 0) return;
+    const filesToProcess = files.slice(0, allowedCount);
+    filesToProcess.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => setProfileData(prev => ({ ...prev, setup: { ...prev.setup, images: [...(prev.setup?.images || []), reader.result] } }));
+      reader.readAsDataURL(file);
+    });
+  };
+  const removeSetupImage = (index) => setProfileData(prev => ({ ...prev, setup: { ...prev.setup, images: prev.setup.images.filter((_, i) => i !== index) } }));
+
   // --- Helpers for Flags ---
   const addRedFlag = () => {
     if (!newRedFlag.trim()) return;
@@ -1253,6 +1306,7 @@ const App = () => {
     { id: 'instagram', name: 'Instagram', icon: <Instagram size={18} />, color: 'from-pink-500 to-purple-600' },
     { id: 'snapchat', name: 'Snapchat', icon: <Ghost size={18} />, color: 'from-yellow-400 to-yellow-500' },
     { id: 'tiktok', name: 'TikTok', icon: <TikTokIcon size={18} />, color: 'from-slate-900 to-black' },
+    { id: 'twitch', name: 'Twitch', icon: <Twitch size={18} />, color: 'from-purple-600 to-purple-900' },
     { id: 'twitter', name: 'X', icon: <Twitter size={18} />, color: 'from-blue-400 to-blue-600' },
     { id: 'email', name: 'E-Mail', icon: <Mail size={18} />, color: 'from-teal-400 to-emerald-500' },
     { id: 'linkedin', name: 'LinkedIn', icon: <Linkedin size={18} />, color: 'from-blue-600 to-blue-800' },
@@ -1703,6 +1757,61 @@ const App = () => {
                       <iframe style={{borderRadius: '12px'}} src={getSpotifyEmbedUrl(profileData.favPodcast)} width="100%" height="152" frameBorder="0" allowFullScreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
                     </div>
                   )}
+                </div>
+              </section>
+            )}
+
+            {/* LIEBLINGS CREATOR MODUL */}
+            {modId === 'favCreators' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('favCreators')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-purple-600 mb-6 flex items-center gap-2"><Video size={20} /> Lieblings Creator</h3>
+                <SearchBar type="creators" onSelect={(item) => addItem('creators', item)} />
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {profileData.favCreators?.map(item => (
+                    <div key={item.id} className="p-3 bg-slate-50 rounded-2xl relative group flex flex-col items-center text-center border border-slate-100">
+                      <img src={item.image} className="w-20 h-20 rounded-full object-cover mb-2 shadow-sm border-2 border-white" alt={item.title} />
+                      <p className="text-[10px] font-black uppercase leading-tight line-clamp-2">{item.title}</p>
+                      <button onClick={() => setProfileData({ ...profileData, favCreators: profileData.favCreators.filter(i => i.id !== item.id) })} className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* SETUP MODUL */}
+            {modId === 'setup' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('setup')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-cyan-500 mb-6 flex items-center gap-2"><Monitor size={20} /> Mein Setup</h3>
+                
+                <div className="mb-6">
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Bilder (Max 5)</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {profileData.setup?.images?.map((img, i) => (
+                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden group border border-slate-100">
+                        <img src={img} className="w-full h-full object-cover" alt="Setup" />
+                        <button onClick={() => removeSetupImage(i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
+                      </div>
+                    ))}
+                    {(profileData.setup?.images?.length || 0) < 5 && (
+                      <label className="aspect-square rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 cursor-pointer hover:bg-slate-50 transition-colors">
+                        <ImagePlus size={20} /><span className="text-[9px] font-black uppercase mt-1">Upload</span>
+                        <input type="file" accept="image/*" multiple className="hidden" onChange={handleSetupImageUpload} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase text-slate-400">Komponenten</p>
+                  {profileData.setup?.components?.map(comp => (
+                    <div key={comp.id} className="flex gap-2">
+                      <input type="text" value={comp.label} onChange={(e) => updateSetupComponent(comp.id, 'label', e.target.value)} placeholder="Teil (z.B. GPU)" className="w-1/3 bg-slate-50 border-none rounded-xl px-3 py-2 font-black text-xs outline-none focus:ring-2 focus:ring-cyan-500/20" />
+                      <input type="text" value={comp.value} onChange={(e) => updateSetupComponent(comp.id, 'value', e.target.value)} placeholder="Name (z.B. RTX 3060)" className="flex-1 bg-slate-50 border-none rounded-xl px-3 py-2 font-bold text-xs outline-none focus:ring-2 focus:ring-cyan-500/20" />
+                      <button onClick={() => removeSetupComponent(comp.id)} className="text-slate-300 hover:text-red-500 p-2"><Trash2 size={16} /></button>
+                    </div>
+                  ))}
+                  <button onClick={addSetupComponent} className="w-full py-3 border-2 border-dashed border-cyan-200 text-cyan-500 rounded-xl flex items-center justify-center gap-2 font-bold text-xs hover:bg-cyan-50 transition-colors"><Plus size={16} /> Komponente hinzufügen</button>
                 </div>
               </section>
             )}
@@ -2776,6 +2885,45 @@ const App = () => {
                       <div className="rounded-[1rem] overflow-hidden shadow-md border border-slate-100 bg-white">
                         <iframe style={{borderRadius: '12px'}} src={getSpotifyEmbedUrl(profileData.favPodcast)} width="100%" height="152" frameBorder="0" allowFullScreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
                       </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: LIEBLINGS CREATOR */}
+                  {profileData.activeModules.includes('favCreators') && profileData.favCreators?.length > 0 && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Video size={12} /> Lieblings Creator</p>
+                      <div className="flex flex-wrap justify-center gap-6">
+                        {profileData.favCreators.map(c => (
+                          <div key={c.id} className="flex flex-col items-center gap-2">
+                            <img src={c.image} className="w-20 h-20 rounded-full object-cover shadow-md border-2 border-white" alt={c.title} />
+                            <p className="text-[10px] font-black uppercase text-slate-800 text-center max-w-[80px] leading-tight">{c.title}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: SETUP */}
+                  {profileData.activeModules.includes('setup') && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Monitor size={12} /> Mein Setup</p>
+                      {profileData.setup?.images?.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4 snap-x">
+                          {profileData.setup.images.map((img, i) => (
+                            <img key={i} src={img} onClick={() => setSelectedImage(img)} className="w-40 h-28 object-cover rounded-2xl snap-center shrink-0 border border-slate-100 cursor-pointer hover:opacity-90 transition-opacity" alt="Setup" />
+                          ))}
+                        </div>
+                      )}
+                      {profileData.setup?.components?.length > 0 && (
+                        <div className="bg-slate-50 rounded-2xl p-4 space-y-2 border border-slate-100">
+                          {profileData.setup.components.map(comp => (
+                            <div key={comp.id} className="flex justify-between items-center border-b border-slate-200/50 last:border-0 pb-2 last:pb-0">
+                              <span className="text-[10px] font-black uppercase text-slate-400">{comp.label}</span>
+                              <span className="text-xs font-bold text-slate-700 text-right">{comp.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
