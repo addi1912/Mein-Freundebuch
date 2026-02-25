@@ -8,7 +8,7 @@ import {
   Calendar, Sparkles, PenTool, Hash, Mail, Linkedin, Mic, Square,
   AudioLines, Trophy, BarChart2, Hourglass, PawPrint, StickyNote,
   Backpack, Smartphone, Briefcase, HelpCircle, Images, Lightbulb,
-  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor
+  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
@@ -521,6 +521,571 @@ const TravelMap = ({ travels }) => {
   );
 };
 
+const PreviewSecretMessage = ({ data, themeConfig }) => {
+  const [input, setInput] = useState('');
+  const [unlocked, setUnlocked] = useState(false);
+  const [error, setError] = useState(false);
+
+  const handleUnlock = () => {
+    if (input.trim().toLowerCase() === (data.answer || '').trim().toLowerCase()) {
+      setUnlocked(true);
+      setError(false);
+    } else {
+      setError(true);
+      setTimeout(() => setError(false), 1000);
+    }
+  };
+
+  if (!data || !data.message) return null;
+
+  if (unlocked) {
+    return (
+      <div className="bg-emerald-50 p-6 rounded-[2.5rem] border border-emerald-100 relative overflow-hidden shadow-sm animate-in zoom-in-95">
+        <div className="absolute top-0 right-0 p-4 opacity-10"><Unlock size={60} /></div>
+        <p className="text-[10px] font-black uppercase text-emerald-600 tracking-[0.2em] mb-4 flex items-center gap-2"><Unlock size={12} /> Geheimnis gelüftet</p>
+        <p className="text-sm font-bold text-slate-700 leading-relaxed whitespace-pre-wrap">{data.message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-slate-800 p-6 rounded-[2.5rem] border border-slate-700 relative overflow-hidden shadow-sm text-white text-left">
+      <div className="absolute top-0 right-0 p-4 opacity-10"><Lock size={60} /></div>
+      <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4 flex items-center gap-2"><Lock size={12} /> Secret Message</p>
+      
+      <div className="space-y-4 relative z-10">
+        <div>
+          <p className="text-xs font-bold text-slate-300 mb-1">Sicherheitsfrage:</p>
+          <p className="text-lg font-black text-white leading-tight">{data.question || 'Wie lautet das Passwort?'}</p>
+        </div>
+        
+        <div className="flex gap-2">
+          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUnlock()} placeholder="Antwort..." className={`flex-1 bg-slate-700/50 border-2 ${error ? 'border-red-500' : 'border-slate-600'} rounded-xl px-4 py-3 font-bold text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 transition-colors`} />
+          <button onClick={handleUnlock} className="bg-indigo-500 text-white p-3 rounded-xl hover:bg-indigo-600 transition-colors font-bold"><Key size={20} /></button>
+        </div>
+        {error && <p className="text-[10px] font-black text-red-400 uppercase animate-pulse">Falsche Antwort!</p>}
+      </div>
+    </div>
+  );
+};
+
+const ReactionGame = ({ highScore, onNewHighScore }) => {
+  const [status, setStatus] = useState('idle'); // idle, waiting, ready, result, early
+  const [time, setTime] = useState(null);
+  const timerRef = useRef(null);
+  const startTimeRef = useRef(null);
+
+  const handleStart = () => {
+    setStatus('waiting');
+    const delay = Math.floor(Math.random() * 3000) + 2000; // 2-5s
+    timerRef.current = setTimeout(() => {
+      setStatus('ready');
+      startTimeRef.current = Date.now();
+    }, delay);
+  };
+
+  const handleClick = () => {
+    if (status === 'idle' || status === 'result' || status === 'early') {
+      handleStart();
+    } else if (status === 'waiting') {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setStatus('early');
+    } else if (status === 'ready') {
+      const endTime = Date.now();
+      const reaction = endTime - startTimeRef.current;
+      setTime(reaction);
+      setStatus('result');
+      if (highScore === null || reaction < highScore) {
+        onNewHighScore(reaction);
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  let content;
+  let bgColor = 'bg-slate-100';
+
+  if (status === 'idle') {
+    content = <><Zap size={48} className="text-slate-400 mb-2" /><p className="font-black text-slate-600 uppercase text-sm">Klicken zum Starten</p></>;
+    bgColor = 'bg-slate-100 hover:bg-slate-200 cursor-pointer';
+  } else if (status === 'waiting') {
+    content = <p className="font-black text-white text-xl uppercase">Warten...</p>;
+    bgColor = 'bg-red-500 cursor-pointer';
+  } else if (status === 'ready') {
+    content = <p className="font-black text-white text-2xl uppercase">KLICKEN!</p>;
+    bgColor = 'bg-green-500 cursor-pointer';
+  } else if (status === 'early') {
+    content = <><p className="font-black text-white text-lg uppercase mb-1">Zu früh!</p><p className="text-white/80 text-xs font-bold">Nochmal versuchen</p></>;
+    bgColor = 'bg-orange-400 cursor-pointer';
+  } else if (status === 'result') {
+    content = (
+      <>
+        <p className="font-black text-slate-800 text-4xl mb-2">{time} ms</p>
+        <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Klicken für Neustart</p>
+      </>
+    );
+    bgColor = 'bg-white border-2 border-slate-100 cursor-pointer';
+  }
+
+  return (
+    <div 
+      onMouseDown={handleClick} 
+      onTouchStart={(e) => { e.preventDefault(); handleClick(); }}
+      className={`w-full aspect-video rounded-3xl flex flex-col items-center justify-center transition-all select-none shadow-sm ${bgColor}`}
+    >
+      {content}
+    </div>
+  );
+};
+
+const PizzaClickerGame = ({ highScore, onNewHighScore }) => {
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [clicks, setClicks] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
+  const timerRef = useRef(null);
+
+  const startGame = () => {
+    if (isPlaying) return;
+    setIsPlaying(true);
+    setIsFinished(false);
+    setClicks(0);
+    setTimeLeft(10);
+
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => prev <= 1 ? 0 : prev - 1);
+    }, 1000);
+  };
+
+  useEffect(() => {
+    if (timeLeft === 0 && isPlaying) {
+      clearInterval(timerRef.current);
+      setIsPlaying(false);
+      setIsFinished(true);
+      if (clicks > (highScore || 0)) {
+        onNewHighScore(clicks);
+      }
+    }
+  }, [timeLeft, isPlaying, clicks, highScore, onNewHighScore]);
+
+  useEffect(() => { return () => clearInterval(timerRef.current); }, []);
+
+  const handleClick = () => {
+    if (isPlaying) setClicks(prev => prev + 1);
+    else startGame();
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4 select-none">
+      <div className="flex justify-between w-full px-4 font-black text-slate-400 text-xs uppercase tracking-widest"><span>Zeit: {timeLeft}s</span><span>Klicks: {clicks}</span></div>
+      <button onMouseDown={handleClick} onTouchStart={(e) => { e.preventDefault(); handleClick(); }} className={`w-32 h-32 rounded-full flex items-center justify-center text-5xl shadow-xl transition-all active:scale-90 active:shadow-inner ${isPlaying ? 'bg-orange-100 hover:bg-orange-200 scale-105' : 'bg-slate-100 hover:bg-slate-200'}`}>🍕</button>
+      <p className="text-sm font-bold text-slate-500">
+        {isPlaying ? 'Klicken so schnell du kannst!' : isFinished ? `Fertig! ${clicks} Klicks` : 'Tippe die Pizza zum Starten'}
+      </p>
+    </div>
+  );
+};
+
+const SlidePuzzleGame = ({ image }) => {
+  const SIZE = 3;
+  const [tiles, setTiles] = useState([...Array(SIZE * SIZE).keys()]);
+  const [isSolved, setIsSolved] = useState(false);
+
+  useEffect(() => {
+    shuffleTiles();
+  }, []);
+
+  const shuffleTiles = () => {
+    let newTiles = [...Array(SIZE * SIZE).keys()];
+    let emptyIdx = newTiles.indexOf(SIZE * SIZE - 1);
+    let previousIdx = -1;
+
+    for (let i = 0; i < 150; i++) {
+      const possibleMoves = [];
+      const row = Math.floor(emptyIdx / SIZE);
+      const col = emptyIdx % SIZE;
+
+      if (row > 0) possibleMoves.push(emptyIdx - SIZE);
+      if (row < SIZE - 1) possibleMoves.push(emptyIdx + SIZE);
+      if (col > 0) possibleMoves.push(emptyIdx - 1);
+      if (col < SIZE - 1) possibleMoves.push(emptyIdx + 1);
+
+      const validMoves = possibleMoves.filter(idx => idx !== previousIdx);
+      if (validMoves.length > 0) {
+        const moveIdx = validMoves[Math.floor(Math.random() * validMoves.length)];
+        [newTiles[emptyIdx], newTiles[moveIdx]] = [newTiles[moveIdx], newTiles[emptyIdx]];
+        previousIdx = emptyIdx;
+        emptyIdx = moveIdx;
+      }
+    }
+    setTiles(newTiles);
+    setIsSolved(false);
+  };
+
+  const moveTile = (index) => {
+    if (isSolved) return;
+    const emptyIndex = tiles.indexOf(SIZE * SIZE - 1);
+    const row = Math.floor(index / SIZE);
+    const col = index % SIZE;
+    const emptyRow = Math.floor(emptyIndex / SIZE);
+    const emptyCol = emptyIndex % SIZE;
+
+    if ((Math.abs(row - emptyRow) + Math.abs(col - emptyCol)) === 1) {
+      const newTiles = [...tiles];
+      [newTiles[index], newTiles[emptyIndex]] = [newTiles[emptyIndex], newTiles[index]];
+      setTiles(newTiles);
+      if (newTiles.every((val, i) => val === i)) setIsSolved(true);
+    }
+  };
+
+  if (!image) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-4 select-none">
+       <div className="relative w-64 h-64 bg-slate-200 rounded-xl overflow-hidden shadow-lg border-4 border-white">
+         {isSolved && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-white text-slate-900 px-6 py-3 rounded-2xl font-black uppercase tracking-widest shadow-2xl transform scale-110">Gelöst! 🎉</div>
+            </div>
+         )}
+         <div className="grid grid-cols-3 w-full h-full bg-slate-100">
+           {tiles.map((tileNumber, index) => {
+             if (tileNumber === SIZE * SIZE - 1) return <div key={`empty-${index}`} className="bg-slate-100/50" />;
+             const x = (tileNumber % SIZE) * 100 / (SIZE - 1);
+             const y = Math.floor(tileNumber / SIZE) * 100 / (SIZE - 1);
+             return (
+               <div key={tileNumber} onClick={() => moveTile(index)} className="w-full h-full cursor-pointer transition-all duration-200 border-[0.5px] border-white/40 hover:brightness-110"
+                 style={{ backgroundImage: `url(${image})`, backgroundSize: `${SIZE * 100}% ${SIZE * 100}%`, backgroundPosition: `${x}% ${y}%` }}
+               />
+             );
+           })}
+         </div>
+       </div>
+       <button onClick={shuffleTiles} className="text-[10px] font-black text-slate-400 uppercase hover:text-slate-600 transition-colors bg-slate-100 px-4 py-2 rounded-full">Mischen</button>
+    </div>
+  );
+};
+
+const MathDashGame = ({ highScore, onNewHighScore }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [problem, setProblem] = useState(null);
+  const [input, setInput] = useState('');
+  const [streak, setStreak] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(2000);
+  const [gameOver, setGameOver] = useState(false);
+  const timerRef = useRef(null);
+  const startTimeRef = useRef(null);
+
+  const generateProblem = () => {
+    const ops = ['+', '-'];
+    const op = ops[Math.floor(Math.random() * ops.length)];
+    let a, b;
+    if (op === '+') {
+      a = Math.floor(Math.random() * 10) + 1;
+      b = Math.floor(Math.random() * 10) + 1;
+    } else {
+      a = Math.floor(Math.random() * 10) + 5;
+      b = Math.floor(Math.random() * 5) + 1;
+    }
+    return { text: `${a} ${op} ${b}`, answer: op === '+' ? a + b : a - b };
+  };
+
+  const startGame = () => {
+    setIsPlaying(true);
+    setGameOver(false);
+    setStreak(0);
+    nextProblem();
+  };
+
+  const nextProblem = () => {
+    const p = generateProblem();
+    setProblem(p);
+    setInput('');
+    setTimeLeft(2000);
+    startTimeRef.current = Date.now();
+    
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const remaining = 2000 - elapsed;
+      if (remaining <= 0) {
+        endGame();
+      } else {
+        setTimeLeft(remaining);
+      }
+    }, 50);
+  };
+
+  const endGame = () => {
+    clearInterval(timerRef.current);
+    setIsPlaying(false);
+    setGameOver(true);
+    setProblem(null);
+    if (streak > (highScore || 0)) {
+      onNewHighScore(streak);
+    }
+  };
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setInput(val);
+    if (parseInt(val) === problem.answer) {
+      setStreak(s => s + 1);
+      nextProblem();
+    }
+  };
+
+  useEffect(() => {
+    return () => clearInterval(timerRef.current);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center gap-4 select-none">
+      {!isPlaying && !gameOver && (
+        <div className="text-center">
+           <div className="bg-blue-50 p-6 rounded-full mb-4 mx-auto w-24 h-24 flex items-center justify-center">
+             <Calculator size={40} className="text-blue-500" />
+           </div>
+           <button onClick={startGame} className="bg-blue-500 text-white px-8 py-3 rounded-2xl font-black uppercase text-sm hover:bg-blue-600 transition-colors shadow-lg active:scale-95">Starten</button>
+           <p className="text-xs font-bold text-slate-400 mt-4">2 Sekunden pro Aufgabe!</p>
+        </div>
+      )}
+      
+      {isPlaying && problem && (
+        <div className="w-full max-w-xs">
+          <div className="flex justify-between text-xs font-black text-slate-400 uppercase mb-2">
+            <span>Streak: {streak}</span>
+            <span>Zeit: {(timeLeft/1000).toFixed(1)}s</span>
+          </div>
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-6">
+            <div className="h-full bg-blue-500 transition-all duration-75 ease-linear" style={{ width: `${(timeLeft/2000)*100}%` }}></div>
+          </div>
+          <div className="text-center">
+            <p className="text-5xl font-black text-slate-800 mb-6">{problem.text}</p>
+            <input 
+              type="number" 
+              value={input} 
+              onChange={handleChange} 
+              autoFocus 
+              className="w-full bg-slate-50 border-2 border-blue-100 rounded-2xl py-4 text-center text-2xl font-black text-blue-600 outline-none focus:border-blue-500 transition-colors" 
+              placeholder="?"
+            />
+          </div>
+        </div>
+      )}
+
+      {gameOver && (
+        <div className="text-center animate-in zoom-in-95">
+          <p className="text-4xl mb-2">⏰</p>
+          <h3 className="text-2xl font-black text-slate-800 mb-1">Vorbei!</h3>
+          <p className="text-sm font-bold text-slate-500 mb-6">Du hast {streak} Aufgaben gelöst.</p>
+          <button onClick={startGame} className="bg-blue-500 text-white px-8 py-3 rounded-2xl font-black uppercase text-sm hover:bg-blue-600 transition-colors shadow-lg active:scale-95">Nochmal</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const WordleGame = ({ targetWord }) => {
+  const [guesses, setGuesses] = useState([]);
+  const [currentGuess, setCurrentGuess] = useState('');
+  const [gameStatus, setGameStatus] = useState('playing'); // playing, won, lost
+  const solution = (targetWord || '').toUpperCase();
+  const WORD_LENGTH = solution.length;
+  const MAX_GUESSES = 6;
+
+  const handleType = (char) => {
+    if (gameStatus !== 'playing') return;
+    if (char === 'ENTER') {
+      if (currentGuess.length !== WORD_LENGTH) return;
+      const newGuesses = [...guesses, currentGuess];
+      setGuesses(newGuesses);
+      setCurrentGuess('');
+      if (currentGuess === solution) {
+        setGameStatus('won');
+      } else if (newGuesses.length >= MAX_GUESSES) {
+        setGameStatus('lost');
+      }
+    } else if (char === 'BACKSPACE') {
+      setCurrentGuess(prev => prev.slice(0, -1));
+    } else {
+      if (currentGuess.length < WORD_LENGTH && /^[A-ZÄÖÜ]$/.test(char)) {
+        setCurrentGuess(prev => prev + char);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const key = e.key.toUpperCase();
+      if (key === 'ENTER' || key === 'BACKSPACE' || /^[A-ZÄÖÜ]$/.test(key)) {
+        handleType(key);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentGuess, gameStatus, guesses]);
+
+  const checkGuess = (guess) => {
+    const res = Array(WORD_LENGTH).fill('gray');
+    const solChars = solution.split('');
+    const gChars = guess.split('');
+    
+    gChars.forEach((c, i) => {
+      if (c === solChars[i]) { res[i] = 'green'; solChars[i] = null; }
+    });
+    gChars.forEach((c, i) => {
+      if (res[i] !== 'green' && solChars.includes(c)) {
+        res[i] = 'yellow';
+        solChars[solChars.indexOf(c)] = null;
+      }
+    });
+    return res;
+  };
+
+  const getKeyColor = (key) => {
+    let color = 'bg-slate-200';
+    guesses.forEach(g => {
+      const res = checkGuess(g);
+      g.split('').forEach((c, i) => {
+        if (c === key) {
+          if (res[i] === 'green') color = 'bg-green-500 text-white';
+          else if (res[i] === 'yellow' && color !== 'bg-green-500 text-white') color = 'bg-yellow-500 text-white';
+          else if (res[i] === 'gray' && color === 'bg-slate-200') color = 'bg-slate-400 text-white';
+        }
+      });
+    });
+    return color;
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4 select-none w-full max-w-xs mx-auto">
+      <div className="grid grid-rows-6 gap-1.5 mb-2">
+        {[...Array(MAX_GUESSES)].map((_, i) => {
+          const guess = guesses[i] || (i === guesses.length ? currentGuess : '');
+          const isCompleted = i < guesses.length;
+          const colors = isCompleted ? checkGuess(guess) : [];
+          return (
+            <div key={i} className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${WORD_LENGTH}, minmax(0, 1fr))` }}>
+              {[...Array(WORD_LENGTH)].map((_, j) => (
+                <div key={j} className={`aspect-square border-2 flex items-center justify-center font-black text-xl uppercase rounded-lg transition-all ${isCompleted ? (colors[j] === 'green' ? 'bg-green-500 border-green-500 text-white' : colors[j] === 'yellow' ? 'bg-yellow-500 border-yellow-500 text-white' : 'bg-slate-400 border-slate-400 text-white') : (guess[j] ? 'border-slate-400 text-slate-800' : 'border-slate-200')}`}>
+                  {guess[j]}
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      {gameStatus === 'won' && <div className="bg-green-100 text-green-700 px-4 py-2 rounded-xl font-black uppercase text-xs animate-bounce">Gewonnen! 🎉</div>}
+      {gameStatus === 'lost' && <div className="bg-red-100 text-red-700 px-4 py-2 rounded-xl font-black uppercase text-xs">Lösung: {solution}</div>}
+      <div className="w-full space-y-1.5">
+        {['QWERTZUIOPÜ', 'ASDFGHJKLÖÄ', 'YXCVBNM'].map((row, i) => (
+          <div key={i} className="flex justify-center gap-1">
+            {i === 2 && <button onClick={() => handleType('ENTER')} className="px-2 py-3 rounded-md text-[10px] font-black bg-slate-200 hover:bg-slate-300">ENT</button>}
+            {row.split('').map(char => (
+              <button key={char} onClick={() => handleType(char)} className={`w-7 h-10 sm:w-8 rounded-md text-xs font-bold transition-colors ${getKeyColor(char)}`}>{char}</button>
+            ))}
+            {i === 2 && <button onClick={() => handleType('BACKSPACE')} className="px-2 py-3 rounded-md text-[10px] font-black bg-slate-200 hover:bg-slate-300">⌫</button>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const CirclePainterGame = ({ highScore, onNewHighScore }) => {
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [score, setScore] = useState(null);
+  const pointsRef = useRef([]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const preventScroll = (e) => e.preventDefault();
+    canvas.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => canvas.removeEventListener('touchmove', preventScroll);
+  }, []);
+
+  const getCoords = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if (e.touches && e.touches.length > 0) {
+      return { x: (e.touches[0].clientX - rect.left) * scaleX, y: (e.touches[0].clientY - rect.top) * scaleY };
+    }
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  };
+
+  const startDrawing = (e) => {
+    const { x, y } = getCoords(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#6366f1'; // indigo-500
+    setIsDrawing(true);
+    pointsRef.current = [{ x, y }];
+    setScore(null);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    const { x, y } = getCoords(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    pointsRef.current.push({ x, y });
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    calculateScore();
+  };
+
+  const calculateScore = () => {
+    const pts = pointsRef.current;
+    if (pts.length < 20) { setScore(0); return; }
+    let sumX = 0, sumY = 0;
+    pts.forEach(p => { sumX += p.x; sumY += p.y; });
+    const centerX = sumX / pts.length;
+    const centerY = sumY / pts.length;
+    const radii = pts.map(p => Math.sqrt(Math.pow(p.x - centerX, 2) + Math.pow(p.y - centerY, 2)));
+    const meanRadius = radii.reduce((a, b) => a + b, 0) / radii.length;
+    const stdDev = Math.sqrt(radii.reduce((a, b) => a + Math.pow(b - meanRadius, 2), 0) / radii.length);
+    const start = pts[0];
+    const end = pts[pts.length - 1];
+    const closureDist = Math.sqrt(Math.pow(start.x - end.x, 2) + Math.pow(start.y - end.y, 2));
+    const closurePenalty = (closureDist / meanRadius) * 30;
+    const deviation = stdDev / meanRadius;
+    let calculatedScore = 100 * (1 - deviation * 2) - closurePenalty;
+    calculatedScore = Math.max(0, Math.min(100, calculatedScore));
+    const finalScore = parseFloat(calculatedScore.toFixed(1));
+    setScore(finalScore);
+    if (finalScore > (highScore || 0)) onNewHighScore(finalScore, canvasRef.current.toDataURL('image/png'));
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative w-64 h-64 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden touch-none">
+        <canvas ref={canvasRef} width={256} height={256} className="w-full h-full cursor-crosshair" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} />
+        {!isDrawing && score === null && <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-300 font-black uppercase text-xs tracking-widest">Zeichne einen Kreis</div>}
+      </div>
+      {score !== null && <div className="text-center"><p className="text-3xl font-black text-slate-800">{score}%</p><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Genauigkeit</p></div>}
+    </div>
+  );
+};
+
 // --- Konstanten ---
 
 const THEMES = {
@@ -638,6 +1203,13 @@ const App = () => {
     favPodcast: '',
     favCreators: [],
     setup: { images: [], components: [] },
+    secretMessage: { question: '', answer: '', message: '' },
+    reactionTime: null,
+    cpsScore: 0,
+    mathDashScore: 0,
+    slidePuzzle: { image: null },
+    wordle: { targetWord: '' },
+    circleGame: { score: 0, image: null },
     wishlist: [],
     topEmojis: ['', '', '', '', ''],
     duolingo: { initialStreak: '', language: '', startDate: null },
@@ -747,6 +1319,8 @@ const App = () => {
         if (!parsed.favPodcast) parsed.favPodcast = '';
         if (!parsed.favCreators) parsed.favCreators = [];
         if (!parsed.setup) parsed.setup = { images: [], components: [] };
+        if (!parsed.secretMessage) parsed.secretMessage = { question: '', answer: '', message: '' };
+        if (parsed.reactionTime === undefined) parsed.reactionTime = null;
         if (!parsed.wishlist) parsed.wishlist = [];
         if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
         setProfileData(parsed);
@@ -790,6 +1364,13 @@ const App = () => {
             if (parsed.favPodcast === undefined) parsed.favPodcast = '';
             if (!parsed.favCreators) parsed.favCreators = [];
             if (!parsed.setup) parsed.setup = { images: [], components: [] };
+            if (!parsed.secretMessage) parsed.secretMessage = { question: '', answer: '', message: '' };
+            if (parsed.reactionTime === undefined) parsed.reactionTime = null;
+            if (parsed.cpsScore === undefined) parsed.cpsScore = 0;
+            if (parsed.mathDashScore === undefined) parsed.mathDashScore = 0;
+            if (!parsed.slidePuzzle) parsed.slidePuzzle = { image: null };
+            if (!parsed.wordle) parsed.wordle = { targetWord: '' };
+            if (!parsed.circleGame) parsed.circleGame = { score: 0, image: null };
             if (!parsed.wishlist) parsed.wishlist = [];
             if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
 
@@ -831,6 +1412,13 @@ const App = () => {
     { id: 'favVideo', name: 'Lieblingsvideo', icon: <Youtube className="text-red-600" />, desc: 'Mein YouTube Favorit' },
     { id: 'favPodcast', name: 'Lieblingspodcast', icon: <Podcast className="text-green-500" />, desc: 'Mein aktueller Ohrwurm' },
     { id: 'favCreators', name: 'Lieblings Creator', icon: <Video className="text-purple-600" />, desc: 'YouTuber & Streamer' },
+    { id: 'secretMessage', name: 'Secret Message', icon: <Lock className="text-slate-600" />, desc: 'Verschlüsselte Nachricht' },
+    { id: 'reactionTime', name: 'Reaktionstest', icon: <Zap className="text-yellow-500" />, desc: 'Wie schnell bist du?', isMinigame: true },
+    { id: 'mathDash', name: 'Math Dash', icon: <Calculator className="text-blue-500" />, desc: 'Kopfrechnen gegen die Zeit', isMinigame: true },
+    { id: 'cps', name: 'Pizza Clicker', icon: <MousePointerClick className="text-orange-500" />, desc: 'Speed Challenge', isMinigame: true },
+    { id: 'slidePuzzle', name: 'Slide Puzzle', icon: <Puzzle className="text-indigo-500" />, desc: 'Schiebepuzzle für Freunde', isMinigame: true },
+    { id: 'wordle', name: 'Wordle', icon: <Grid3x3 className="text-emerald-600" />, desc: 'Errate das Wort', isMinigame: true },
+    { id: 'circleGame', name: 'Kreis Zeichnen', icon: <Circle className="text-indigo-500" />, desc: 'Wie rund kannst du malen?', isMinigame: true },
     { id: 'setup', name: 'Mein Setup', icon: <Monitor className="text-cyan-500" />, desc: 'PC, Konsole & Desk' },
     { id: 'topEmojis', name: 'Top 5 Emojis', icon: <Smile className="text-yellow-500" />, desc: 'Meine meistgenutzten Emojis' },
     { id: 'brawlStars', name: 'Brawl Stars', icon: <Skull className="text-yellow-500" />, desc: 'Trophäen & Brawler' },
@@ -1190,6 +1778,15 @@ const App = () => {
     });
   };
   const removeSetupImage = (index) => setProfileData(prev => ({ ...prev, setup: { ...prev.setup, images: prev.setup.images.filter((_, i) => i !== index) } }));
+
+  // --- Helpers for Slide Puzzle ---
+  const handleSlidePuzzleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setProfileData(prev => ({ ...prev, slidePuzzle: { image: reader.result } }));
+    reader.readAsDataURL(file);
+  };
 
   // --- Helpers for Flags ---
   const addRedFlag = () => {
@@ -1775,6 +2372,117 @@ const App = () => {
                       <button onClick={() => setProfileData({ ...profileData, favCreators: profileData.favCreators.filter(i => i.id !== item.id) })} className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
                     </div>
                   ))}
+                </div>
+              </section>
+            )}
+
+            {/* REACTION TIME MODUL */}
+            {modId === 'reactionTime' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('reactionTime')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-yellow-500 mb-6 flex items-center gap-2"><Zap size={20} /> Reaktionstest</h3>
+                <ReactionGame highScore={profileData.reactionTime} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, reactionTime: score }))} />
+                <div className="mt-4 text-center">
+                  <p className="text-xs font-bold text-slate-500">Dein Highscore: <span className="text-slate-900 font-black">{profileData.reactionTime ? `${profileData.reactionTime} ms` : '-'}</span></p>
+                </div>
+              </section>
+            )}
+
+            {/* MATH DASH MODUL */}
+            {modId === 'mathDash' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('mathDash')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-blue-500 mb-6 flex items-center gap-2"><Calculator size={20} /> Math Dash</h3>
+                <MathDashGame highScore={profileData.mathDashScore} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, mathDashScore: score }))} />
+                <div className="mt-4 text-center">
+                  <p className="text-xs font-bold text-slate-500">Dein Highscore: <span className="text-slate-900 font-black">{profileData.mathDashScore || 0}</span></p>
+                </div>
+              </section>
+            )}
+
+            {/* PIZZA CLICKER MODUL */}
+            {modId === 'cps' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('cps')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-orange-500 mb-6 flex items-center gap-2"><MousePointerClick size={20} /> Pizza Clicker</h3>
+                <PizzaClickerGame highScore={profileData.cpsScore} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, cpsScore: score }))} />
+                <div className="mt-4 text-center">
+                  <p className="text-xs font-bold text-slate-500">Dein Highscore: <span className="text-slate-900 font-black">{profileData.cpsScore || 0} Klicks</span></p>
+                </div>
+              </section>
+            )}
+
+            {/* SLIDE PUZZLE MODUL */}
+            {modId === 'slidePuzzle' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('slidePuzzle')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-indigo-500 mb-6 flex items-center gap-2"><Puzzle size={20} /> Slide Puzzle</h3>
+                
+                <div className="flex flex-col items-center">
+                  <label className="w-full aspect-square max-w-xs rounded-3xl flex items-center justify-center cursor-pointer border-2 border-dashed border-slate-300 relative overflow-hidden group bg-slate-50 hover:bg-slate-100 transition-colors">
+                    {profileData.slidePuzzle?.image ? (
+                      <img src={profileData.slidePuzzle.image} className="w-full h-full object-cover" alt="Puzzle" />
+                    ) : (
+                      <div className="flex flex-col items-center text-slate-400"><ImagePlus size={32}/><span className="text-xs font-black uppercase mt-2">Bild hochladen</span></div>
+                    )}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleSlidePuzzleImageUpload} />
+                  </label>
+                  {profileData.slidePuzzle?.image && <p className="text-xs font-bold text-slate-400 mt-4 text-center">Dieses Bild wird in der Vorschau als Puzzle angezeigt.</p>}
+                </div>
+              </section>
+            )}
+
+            {/* CIRCLE GAME MODUL */}
+            {modId === 'circleGame' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('circleGame')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-indigo-500 mb-6 flex items-center gap-2"><Circle size={20} /> Kreis Zeichnen</h3>
+                <CirclePainterGame highScore={profileData.circleGame?.score} onNewHighScore={(score, img) => setProfileData(prev => ({ ...prev, circleGame: { score, image: img } }))} />
+                <div className="mt-4 text-center">
+                  <p className="text-xs font-bold text-slate-500">Dein Highscore: <span className="text-slate-900 font-black">{profileData.circleGame?.score || 0}%</span></p>
+                </div>
+              </section>
+            )}
+
+            {/* WORDLE MODUL */}
+            {modId === 'wordle' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('wordle')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-emerald-600 mb-6 flex items-center gap-2"><Grid3x3 size={20} /> Wordle</h3>
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
+                  <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Lösungswort (4-7 Buchstaben)</label>
+                  <input type="text" maxLength={7} value={profileData.wordle?.targetWord || ''} onChange={(e) => setProfileData(prev => ({ ...prev, wordle: { targetWord: e.target.value.toUpperCase().replace(/[^A-ZÄÖÜ]/g, '') } }))} placeholder="z.B. PIZZA" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-black text-lg tracking-widest uppercase outline-none focus:ring-2 focus:ring-emerald-500/20 text-center" />
+                </div>
+              </section>
+            )}
+
+            {/* SECRET MESSAGE MODUL */}
+            {modId === 'secretMessage' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('secretMessage')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-slate-700 mb-2 flex items-center gap-2"><Lock size={20} /> Secret Message</h3>
+                <p className="text-xs font-bold text-slate-500 mb-6 leading-relaxed">
+                  Hinterlasse eine geheime Nachricht! Nur Freunde, die die Antwort auf deine Frage wissen, können den Text lesen. (Groß-/Kleinschreibung wird ignoriert)
+                </p>
+                
+                <div className="space-y-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                    <div>
+                      <label className="text-[9px] font-black uppercase text-slate-400 mb-1.5 block ml-1">Sicherheitsfrage</label>
+                      <input type="text" value={profileData.secretMessage?.question || ''} onChange={(e) => setProfileData(prev => ({ ...prev, secretMessage: { ...prev.secretMessage, question: e.target.value } }))} placeholder="z.B. Wie hieß mein erster Hund?" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-slate-500/20" />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black uppercase text-slate-400 mb-1.5 block ml-1">Antwort (Passwort)</label>
+                      <div className="relative">
+                        <input type="text" value={profileData.secretMessage?.answer || ''} onChange={(e) => setProfileData(prev => ({ ...prev, secretMessage: { ...prev.secretMessage, answer: e.target.value } }))} placeholder="Die geheime Antwort..." className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-slate-500/20 pr-10" />
+                        <Key className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1.5 block ml-1">Geheime Nachricht</label>
+                    <textarea value={profileData.secretMessage?.message || ''} onChange={(e) => setProfileData(prev => ({ ...prev, secretMessage: { ...prev.secretMessage, message: e.target.value } }))} placeholder="Schreibe hier, was nur deine echten Freunde lesen sollen..." className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 font-bold text-sm focus:ring-2 focus:ring-slate-500/20 outline-none resize-none min-h-[120px] text-slate-700" />
+                  </div>
                 </div>
               </section>
             )}
@@ -2652,7 +3360,10 @@ const App = () => {
                 {filteredModules.map(mod => (
                   <button key={mod.id} disabled={profileData.activeModules.includes(mod.id)} onClick={() => addModule(mod.id)} className={`flex flex-col items-start gap-3 p-5 rounded-3xl border-2 transition-all ${profileData.activeModules.includes(mod.id) ? 'opacity-40 grayscale border-slate-50 bg-slate-50 cursor-not-allowed' : `border-slate-50 hover:${t.border} active:scale-95`}`}>
                     <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100">{mod.icon}</div>
-                    <p className="font-black uppercase text-slate-900 text-[10px] leading-tight">{mod.name}</p>
+                    <div className="flex flex-col items-start">
+                      <p className="font-black uppercase text-slate-900 text-[10px] leading-tight">{mod.name}</p>
+                      {mod.isMinigame && <span className={`mt-1 text-[7px] px-1.5 py-0.5 rounded-md ${t.bg} text-white tracking-normal font-bold`}>MINIGAME</span>}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -2901,6 +3612,97 @@ const App = () => {
                         ))}
                       </div>
                     </div>
+                  )}
+
+                  {/* VORSCHAU: REACTION TIME */}
+                  {profileData.activeModules.includes('reactionTime') && profileData.reactionTime !== null && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}>
+                        <Zap size={12} /> Reaktionszeit
+                        <span className={`ml-auto text-[7px] px-1.5 py-0.5 rounded-md ${t.bg} text-white tracking-normal`}>MINIGAME</span>
+                      </p>
+                      <div className="bg-yellow-50 p-6 rounded-[2.5rem] border border-yellow-100 text-center">
+                        <Zap size={40} className="mx-auto text-yellow-500 mb-2" />
+                        <p className="text-4xl font-black text-slate-800 mb-1">{profileData.reactionTime} ms</p>
+                        <p className="text-[10px] font-black uppercase text-yellow-600 tracking-widest">Highscore</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: MATH DASH */}
+                  {profileData.activeModules.includes('mathDash') && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}>
+                        <Calculator size={12} /> Math Dash
+                        <span className={`ml-auto text-[7px] px-1.5 py-0.5 rounded-md ${t.bg} text-white tracking-normal`}>MINIGAME</span>
+                      </p>
+                      <div className="bg-blue-50 p-6 rounded-[2.5rem] border border-blue-100 text-center">
+                        <Calculator size={40} className="mx-auto text-blue-500 mb-2" />
+                        <p className="text-4xl font-black text-slate-800 mb-1">{profileData.mathDashScore || 0}</p>
+                        <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Streak Highscore</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: PIZZA CLICKER */}
+                  {profileData.activeModules.includes('cps') && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}>
+                        <MousePointerClick size={12} /> Pizza Clicker
+                        <span className={`ml-auto text-[7px] px-1.5 py-0.5 rounded-md ${t.bg} text-white tracking-normal`}>MINIGAME</span>
+                      </p>
+                      <div className="bg-orange-50 p-6 rounded-[2.5rem] border border-orange-100 text-center">
+                        <div className="text-4xl mb-2">🍕</div>
+                        <p className="text-4xl font-black text-slate-800 mb-1">{profileData.cpsScore || 0}</p>
+                        <p className="text-[10px] font-black uppercase text-orange-600 tracking-widest">Klicks in 10s</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: SLIDE PUZZLE */}
+                  {profileData.activeModules.includes('slidePuzzle') && profileData.slidePuzzle?.image && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}>
+                        <Puzzle size={12} /> Slide Puzzle
+                        <span className={`ml-auto text-[7px] px-1.5 py-0.5 rounded-md ${t.bg} text-white tracking-normal`}>MINIGAME</span>
+                      </p>
+                      <SlidePuzzleGame image={profileData.slidePuzzle.image} />
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: WORDLE */}
+                  {profileData.activeModules.includes('wordle') && profileData.wordle?.targetWord?.length >= 4 && profileData.wordle?.targetWord?.length <= 7 && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}>
+                        <Grid3x3 size={12} /> Wordle
+                        <span className={`ml-auto text-[7px] px-1.5 py-0.5 rounded-md ${t.bg} text-white tracking-normal`}>MINIGAME</span>
+                      </p>
+                      <WordleGame targetWord={profileData.wordle.targetWord} />
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: CIRCLE GAME */}
+                  {profileData.activeModules.includes('circleGame') && profileData.circleGame?.score > 0 && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}>
+                        <Circle size={12} /> Kreis Zeichnen
+                        <span className={`ml-auto text-[7px] px-1.5 py-0.5 rounded-md ${t.bg} text-white tracking-normal`}>MINIGAME</span>
+                      </p>
+                      <div className="bg-indigo-50 p-6 rounded-[2.5rem] border border-indigo-100 text-center flex flex-col items-center">
+                        {profileData.circleGame.image && (
+                          <div className="w-32 h-32 bg-white rounded-2xl border-2 border-indigo-100 mb-4 overflow-hidden shadow-sm">
+                            <img src={profileData.circleGame.image} alt="Kreis" className="w-full h-full object-contain" />
+                          </div>
+                        )}
+                        <p className="text-4xl font-black text-slate-800 mb-1">{profileData.circleGame.score}%</p>
+                        <p className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Genauigkeit</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: SECRET MESSAGE */}
+                  {profileData.activeModules.includes('secretMessage') && profileData.secretMessage?.message && (
+                    <PreviewSecretMessage data={profileData.secretMessage} themeConfig={t} />
                   )}
 
                   {/* VORSCHAU: SETUP */}
