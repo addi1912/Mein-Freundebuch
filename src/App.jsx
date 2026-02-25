@@ -8,7 +8,7 @@ import {
   Calendar, Sparkles, PenTool, Hash, Mail, Linkedin, Mic, Square,
   AudioLines, Trophy, BarChart2, Hourglass, PawPrint, StickyNote,
   Backpack, Smartphone, Briefcase, HelpCircle, Images, Lightbulb,
-  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database
+  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
@@ -86,6 +86,24 @@ const getFlagEmoji = (countryCode) => {
   if (!countryCode) return '';
   const codePoints = countryCode.toUpperCase().split('').map(char => 127397 + char.charCodeAt(0));
   return String.fromCodePoint(...codePoints);
+};
+
+const getYoutubeId = (url) => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
+const getSpotifyEmbedUrl = (url) => {
+  if (!url) return null;
+  const match = url.match(/open\.spotify\.com\/(show|episode)\/([a-zA-Z0-9]+)/);
+  if (match) {
+    const type = match[1];
+    const id = match[2];
+    return `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`;
+  }
+  return null;
 };
 
 // --- Sub-Komponenten ---
@@ -605,10 +623,16 @@ const App = () => {
       { id: '1', text: '', isLie: false },
       { id: '2', text: '', isLie: false },
       { id: '3', text: '', isLie: false }
-    ], 
+    ],
+    redFlags: [], greenFlags: [],
     coc: { trophies: '', builderTrophies: '', townHall: '', builderHall: '', villageImage: null, builderBaseImage: null, friendLink: '' },
     hayday: { level: '', friendCode: '', farmImage: null },
     concerts: [], // NEU: Konzert Tagebuch
+    brawlStars: { trophies: '', favoriteBrawler: '', rank: '', friendLink: '' },
+    favVideo: '',
+    favPodcast: '',
+    wishlist: [],
+    topEmojis: ['', '', '', '', ''],
     duolingo: { initialStreak: '', language: '', startDate: null },
     socials: {}, activeModules: [], lastUpdated: Date.now()
   });
@@ -651,6 +675,9 @@ const App = () => {
 
   const [newQuizQuestion, setNewQuizQuestion] = useState('');
   const [newQuizAnswer, setNewQuizAnswer] = useState('');
+
+  const [newRedFlag, setNewRedFlag] = useState('');
+  const [newGreenFlag, setNewGreenFlag] = useState('');
 
   const [user, setUser] = useState(null);
   const [isOwner, setIsOwner] = useState(true);
@@ -700,12 +727,19 @@ const App = () => {
         if (!parsed.screenTime) parsed.screenTime = [];
         if (!parsed.quiz) parsed.quiz = [];
         if (!parsed.moodboard) parsed.moodboard = [];
+        if (!parsed.redFlags) parsed.redFlags = [];
+        if (!parsed.greenFlags) parsed.greenFlags = [];
         if (!parsed.twoTruths) parsed.twoTruths = [
           { id: '1', text: '', isLie: false }, { id: '2', text: '', isLie: false }, { id: '3', text: '', isLie: false }
         ];
         if (!parsed.coc) parsed.coc = { trophies: '', builderTrophies: '', townHall: '', builderHall: '', villageImage: null, builderBaseImage: null, friendLink: '' };
         if (!parsed.hayday) parsed.hayday = { level: '', friendCode: '', farmImage: null };
         if (!parsed.concerts) parsed.concerts = [];
+        if (!parsed.brawlStars) parsed.brawlStars = { trophies: '', favoriteBrawler: '', rank: '', friendLink: '' };
+        if (!parsed.favVideo) parsed.favVideo = '';
+        if (!parsed.favPodcast) parsed.favPodcast = '';
+        if (!parsed.wishlist) parsed.wishlist = [];
+        if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
         setProfileData(parsed);
       } else if (user.uid === targetUid) {
         // Migration von lokalem Speicher beim ersten Cloud-Login
@@ -731,6 +765,8 @@ const App = () => {
             if (!parsed.screenTime) parsed.screenTime = [];
             if (!parsed.quiz) parsed.quiz = [];
             if (!parsed.moodboard) parsed.moodboard = [];
+            if (!parsed.redFlags) parsed.redFlags = [];
+            if (!parsed.greenFlags) parsed.greenFlags = [];
             if (!parsed.twoTruths) parsed.twoTruths = [
               { id: '1', text: '', isLie: false },
               { id: '2', text: '', isLie: false },
@@ -740,6 +776,11 @@ const App = () => {
             if (parsed.coc && parsed.coc.builderTrophies === undefined) parsed.coc.builderTrophies = '';
             if (!parsed.hayday) parsed.hayday = { level: '', friendCode: '', farmImage: null };
             if (!parsed.concerts) parsed.concerts = [];
+            if (!parsed.brawlStars) parsed.brawlStars = { trophies: '', favoriteBrawler: '', rank: '', friendLink: '' };
+            if (parsed.favVideo === undefined) parsed.favVideo = '';
+            if (parsed.favPodcast === undefined) parsed.favPodcast = '';
+            if (!parsed.wishlist) parsed.wishlist = [];
+            if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
 
             if (parsed.coverImage === undefined) parsed.coverImage = null;
             if (!parsed.tags) parsed.tags = [];
@@ -775,6 +816,11 @@ const App = () => {
 
   const allModules = [
     { id: 'concerts', name: 'Konzert-Tagebuch', icon: <Ticket className="text-fuchsia-500" />, desc: 'Festivals & Live Gigs' },
+    { id: 'wishlist', name: 'Wunschliste', icon: <Gift className="text-pink-500" />, desc: 'Wünsche & Links' },
+    { id: 'favVideo', name: 'Lieblingsvideo', icon: <Youtube className="text-red-600" />, desc: 'Mein YouTube Favorit' },
+    { id: 'favPodcast', name: 'Lieblingspodcast', icon: <Podcast className="text-green-500" />, desc: 'Mein aktueller Ohrwurm' },
+    { id: 'topEmojis', name: 'Top 5 Emojis', icon: <Smile className="text-yellow-500" />, desc: 'Meine meistgenutzten Emojis' },
+    { id: 'brawlStars', name: 'Brawl Stars', icon: <Skull className="text-yellow-500" />, desc: 'Trophäen & Brawler' },
     { id: 'hayday', name: 'Hay Day', icon: <Tractor className="text-yellow-600" />, desc: 'Farm Lvl & Code' }, 
     { id: 'coc', name: 'Clash of Clans', icon: <Swords className="text-amber-500" />, desc: 'Rathaus, Trophäen & Base' }, 
     { id: 'relationships', name: 'Beziehung', icon: <Heart className="text-rose-500 fill-rose-500" />, desc: 'Dein Partner & Dauer' },
@@ -797,7 +843,8 @@ const App = () => {
     { id: 'bucketList', name: 'Bucket List', icon: <MapPin className="text-red-500" />, desc: 'Ziele & Träume' },
     { id: 'thisOrThat', name: 'Entweder / Oder', icon: <ArrowRightLeft className="text-purple-500" />, desc: 'Schwere Fragen' },
     { id: 'quote', name: 'Lieblingszitat', icon: <Quote className="text-slate-500" />, desc: 'Lebensmotto' },
-    { id: 'games', name: 'Gaming', icon: <Gamepad2 className="text-sky-500" />, desc: 'Aktuelle Spiele' }
+    { id: 'games', name: 'Gaming', icon: <Gamepad2 className="text-sky-500" />, desc: 'Aktuelle Spiele' },
+    { id: 'flags', name: 'Red/Green Flags', icon: <Flag className="text-red-500" />, desc: 'No-Gos & Must-Haves' }
   ];
 
   const filteredModules = useMemo(() => {
@@ -1066,6 +1113,45 @@ const App = () => {
     reader.readAsDataURL(file);
   };
 
+  // --- Helpers for Wishlist ---
+  const addWish = () => {
+    setProfileData(prev => ({
+      ...prev,
+      wishlist: [...(prev.wishlist || []), { id: Date.now().toString(), name: '', link: '', urgency: 3, image: null }]
+    }));
+  };
+  const updateWish = (id, field, value) => {
+    setProfileData(prev => ({ ...prev, wishlist: prev.wishlist.map(w => w.id === id ? { ...w, [field]: value } : w) }));
+  };
+  const removeWish = (id) => setProfileData(prev => ({ ...prev, wishlist: prev.wishlist.filter(w => w.id !== id) }));
+  const handleWishImageUpload = (id, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setProfileData(prev => ({ ...prev, wishlist: prev.wishlist.map(w => w.id === id ? { ...w, image: reader.result } : w) }));
+    reader.readAsDataURL(file);
+  };
+
+  const updateTopEmoji = (index, emoji) => {
+    const newEmojis = [...(profileData.topEmojis || ['', '', '', '', ''])];
+    newEmojis[index] = emoji;
+    setProfileData(prev => ({ ...prev, topEmojis: newEmojis }));
+  };
+
+  // --- Helpers for Flags ---
+  const addRedFlag = () => {
+    if (!newRedFlag.trim()) return;
+    setProfileData(prev => ({ ...prev, redFlags: [...(prev.redFlags || []), { id: Date.now().toString(), text: newRedFlag.trim() }] }));
+    setNewRedFlag('');
+  };
+  const removeRedFlag = (id) => setProfileData(prev => ({ ...prev, redFlags: prev.redFlags.filter(i => i.id !== id) }));
+
+  const addGreenFlag = () => {
+    if (!newGreenFlag.trim()) return;
+    setProfileData(prev => ({ ...prev, greenFlags: [...(prev.greenFlags || []), { id: Date.now().toString(), text: newGreenFlag.trim() }] }));
+    setNewGreenFlag('');
+  };
+  const removeGreenFlag = (id) => setProfileData(prev => ({ ...prev, greenFlags: prev.greenFlags.filter(i => i.id !== id) }));
 
   // --- Saving & Export ---
 
@@ -1250,15 +1336,15 @@ const App = () => {
           <h1 className="font-black text-lg uppercase tracking-tighter">Mein Freundebuch</h1>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={handleDownloadPDF} disabled={isGeneratingPDF} title="Herunterladen" className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 ${t.bgLight} ${t.text} rounded-2xl font-bold transition-all ${t.hover} active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}>
+            {isGeneratingPDF ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+            <span className="hidden sm:inline">{isGeneratingPDF ? 'Lädt...' : 'Download'}</span>
+          </button>
           {isOwner && (
             <button onClick={handleShare} className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 ${t.bgLight} ${t.text} rounded-2xl font-bold transition-all ${t.hover} active:scale-95`}>
               <LinkIcon size={18} /> <span className="hidden sm:inline">Teilen</span>
             </button>
           )}
-          <button onClick={handleDownloadPDF} disabled={isGeneratingPDF} title="Herunterladen" className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-slate-100 text-slate-700 rounded-2xl font-bold transition-all hover:bg-slate-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-            {isGeneratingPDF ? <Loader2 size={18} className="animate-spin text-slate-500" /> : <Download size={18} />}
-            {isGeneratingPDF && <span className="hidden sm:inline">Lädt...</span>}
-          </button>
           <button onClick={() => setShowPreview(true)} className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 ${t.bgLight} ${t.text} rounded-2xl font-bold transition-all ${t.hover} active:scale-95`}>
             <Eye size={18} /> <span className="hidden sm:inline">Vorschau</span>
           </button>
@@ -1460,6 +1546,163 @@ const App = () => {
                     </div>
                   ))}
                   <button onClick={addConcert} className="w-full py-4 border-2 border-dashed border-fuchsia-200 text-fuchsia-500 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm hover:bg-fuchsia-50 transition-colors"><Plus size={18} /> Erlebnis hinzufügen</button>
+                </div>
+              </section>
+            )}
+
+            {/* Wishlist Modul */}
+            {modId === 'wishlist' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('wishlist')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-pink-500 mb-6 flex items-center gap-2"><Gift size={20} /> Wunschliste</h3>
+                <div className="space-y-6">
+                  {profileData.wishlist?.map(wish => (
+                    <div key={wish.id} className="bg-slate-50 p-5 rounded-[2rem] relative border border-slate-100">
+                      <button onClick={() => removeWish(wish.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 p-2 z-10"><Trash2 size={16} /></button>
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <label className="w-full sm:w-28 aspect-square shrink-0 rounded-2xl flex items-center justify-center cursor-pointer shadow-sm border-2 border-dashed border-slate-300 relative overflow-hidden group bg-white hover:bg-slate-50 transition-colors">
+                          {wish.image ? ( <img src={wish.image} className="w-full h-full object-cover" alt="Wunsch" /> ) : (
+                            <div className="flex flex-col items-center text-slate-400"><ImagePlus size={20} /><span className="text-[8px] font-black uppercase mt-1">Foto</span></div>
+                          )}
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleWishImageUpload(wish.id, e)} />
+                        </label>
+                        <div className="flex-1 space-y-3">
+                          <input type="text" value={wish.name} onChange={(e) => updateWish(wish.id, 'name', e.target.value)} placeholder="Was wünschst du dir?" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 font-black focus:ring-2 focus:ring-pink-500/20 text-sm outline-none" />
+                          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-pink-500/20">
+                            <LinkIcon size={14} className="text-slate-400 shrink-0" />
+                            <input type="text" value={wish.link} onChange={(e) => updateWish(wish.id, 'link', e.target.value)} placeholder="Link zum Produkt (z.B. Amazon)..." className="flex-1 bg-transparent border-none font-bold text-xs outline-none text-slate-600" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase text-slate-400">Dringlichkeit:</span>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <Star key={star} size={16} className={`cursor-pointer transition-colors ${wish.urgency >= star ? 'text-yellow-400 fill-yellow-400' : 'text-slate-200 fill-slate-50'}`} onClick={() => updateWish(wish.id, 'urgency', star)} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={addWish} className="w-full py-4 border-2 border-dashed border-pink-200 text-pink-500 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm hover:bg-pink-50 transition-colors"><Plus size={18} /> Wunsch hinzufügen</button>
+                </div>
+              </section>
+            )}
+
+            {/* Top 5 Emojis Modul */}
+            {modId === 'topEmojis' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('topEmojis')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-yellow-500 mb-6 flex items-center gap-2"><Smile size={20} /> Top 5 Emojis</h3>
+                <div className="flex flex-wrap justify-center gap-4">
+                  {[0, 1, 2, 3, 4].map(i => (
+                    <div key={i} className="relative">
+                      <button onClick={() => setEmojiPickerIdx(emojiPickerIdx === `top_${i}` ? null : `top_${i}`)} className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl hover:bg-slate-100 border-2 border-slate-100 transition-all hover:scale-105 active:scale-95">
+                        {profileData.topEmojis?.[i] || <Plus size={24} className="text-slate-300" />}
+                      </button>
+                      {emojiPickerIdx === `top_${i}` && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setEmojiPickerIdx(null)} />
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 z-50 w-64 animate-in zoom-in-95">
+                            <div className="grid grid-cols-6 gap-2 mb-3">
+                              {EMOJI_LIST.map(e => (
+                                <button key={e} onClick={() => { updateTopEmoji(i, e); setEmojiPickerIdx(null); }} className="text-xl w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-lg hover:scale-125 transition-all">{e}</button>
+                              ))}
+                            </div>
+                            <div className="pt-3 border-t border-slate-100">
+                              <p className="text-[9px] font-black uppercase text-slate-400 mb-2">Tastatur</p>
+                              <input type="text" value={profileData.topEmojis?.[i] || ''} onChange={(e) => updateTopEmoji(i, e.target.value)} className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-center text-xl focus:ring-2 focus:ring-yellow-500/20 outline-none" placeholder="😊" />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-yellow-400 text-white rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white shadow-sm">{i + 1}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* BRAWL STARS MODUL */}
+            {modId === 'brawlStars' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('brawlStars')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-yellow-500 mb-6 flex items-center gap-2"><Skull size={20} /> Brawl Stars</h3>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                      <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">🏆 Trophäen</label>
+                      <input type="number" placeholder="z.B. 15000" value={profileData.brawlStars?.trophies || ''} onChange={(e) => setProfileData(p => ({ ...p, brawlStars: { ...p.brawlStars, trophies: e.target.value } }))} className="w-full bg-transparent font-black text-slate-800 outline-none text-lg" />
+                    </div>
+                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                      <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">💎 Rang</label>
+                      <input type="text" placeholder="z.B. Mythisch I" value={profileData.brawlStars?.rank || ''} onChange={(e) => setProfileData(p => ({ ...p, brawlStars: { ...p.brawlStars, rank: e.target.value } }))} className="w-full bg-transparent font-black text-slate-800 outline-none text-lg" />
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">💀 Lieblings Brawler</label>
+                    <input type="text" placeholder="z.B. Spike" value={profileData.brawlStars?.favoriteBrawler || ''} onChange={(e) => setProfileData(p => ({ ...p, brawlStars: { ...p.brawlStars, favoriteBrawler: e.target.value } }))} className="w-full bg-transparent font-black text-slate-800 outline-none text-lg" />
+                  </div>
+                  <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 focus-within:ring-2 focus-within:ring-yellow-500/20 transition-all">
+                    <LinkIcon size={18} className="text-yellow-500 shrink-0" />
+                    <input type="text" placeholder="Dein Brawl Stars Freundeslink..." value={profileData.brawlStars?.friendLink || ''} onChange={(e) => setProfileData(p => ({ ...p, brawlStars: { ...p.brawlStars, friendLink: e.target.value } }))} className="flex-1 bg-transparent border-none outline-none font-bold text-sm text-slate-700 placeholder-slate-400" />
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* LIEBLINGSVIDEO MODUL */}
+            {modId === 'favVideo' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('favVideo')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-red-600 mb-6 flex items-center gap-2"><Youtube size={20} /> Lieblingsvideo</h3>
+                <div className="space-y-4">
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                    <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">YouTube Link</label>
+                    <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-red-500/20 transition-all">
+                      <LinkIcon size={18} className="text-red-500 shrink-0" />
+                      <input 
+                        type="text" 
+                        placeholder="https://www.youtube.com/watch?v=..." 
+                        value={profileData.favVideo || ''} 
+                        onChange={(e) => setProfileData(prev => ({ ...prev, favVideo: e.target.value }))} 
+                        className="flex-1 bg-transparent border-none outline-none font-bold text-sm text-slate-700 placeholder-slate-400" 
+                      />
+                    </div>
+                  </div>
+                  {getYoutubeId(profileData.favVideo) && (
+                    <div className="aspect-video rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-black">
+                      <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${getYoutubeId(profileData.favVideo)}`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* LIEBLINGSPODCAST MODUL */}
+            {modId === 'favPodcast' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('favPodcast')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-green-500 mb-6 flex items-center gap-2"><Podcast size={20} /> Lieblingspodcast</h3>
+                <div className="space-y-4">
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                    <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Spotify Link (Show oder Episode)</label>
+                    <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-green-500/20 transition-all">
+                      <LinkIcon size={18} className="text-green-500 shrink-0" />
+                      <input 
+                        type="text" 
+                        placeholder="https://open.spotify.com/show/..." 
+                        value={profileData.favPodcast || ''} 
+                        onChange={(e) => setProfileData(prev => ({ ...prev, favPodcast: e.target.value }))} 
+                        className="flex-1 bg-transparent border-none outline-none font-bold text-sm text-slate-700 placeholder-slate-400" 
+                      />
+                    </div>
+                  </div>
+                  {getSpotifyEmbedUrl(profileData.favPodcast) && (
+                    <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100">
+                      <iframe style={{borderRadius: '12px'}} src={getSpotifyEmbedUrl(profileData.favPodcast)} width="100%" height="152" frameBorder="0" allowFullScreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+                    </div>
+                  )}
                 </div>
               </section>
             )}
@@ -2228,6 +2471,50 @@ const App = () => {
               </section>
             )}
 
+            {/* Red/Green Flags Modul */}
+            {modId === 'flags' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('flags')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-slate-800 mb-6 flex items-center gap-2"><Flag size={20} className="text-red-500" /> Red & Green Flags</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Red Flags */}
+                  <div className="bg-red-50 p-5 rounded-3xl border border-red-100">
+                    <h4 className="font-black text-red-500 uppercase text-sm mb-4 flex items-center gap-2"><Flag size={16} fill="currentColor" /> Red Flags</h4>
+                    <div className="flex gap-2 mb-4 w-full">
+                      <input type="text" value={newRedFlag} onChange={(e) => setNewRedFlag(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addRedFlag()} placeholder="z.B. Unpünktlichkeit..." className="flex-1 min-w-0 bg-white border-none rounded-xl px-3 py-2 font-bold text-xs outline-none focus:ring-2 focus:ring-red-500/20" />
+                      <button onClick={addRedFlag} disabled={!newRedFlag.trim()} className="shrink-0 bg-red-500 text-white p-2 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50"><Plus size={18} /></button>
+                    </div>
+                    <div className="space-y-2">
+                      {profileData.redFlags?.map(flag => (
+                        <div key={flag.id} className="flex items-center justify-between bg-white p-3 rounded-xl shadow-sm group">
+                          <span className="font-bold text-xs text-slate-700">{flag.text}</span>
+                          <button onClick={() => removeRedFlag(flag.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Green Flags */}
+                  <div className="bg-emerald-50 p-5 rounded-3xl border border-emerald-100">
+                    <h4 className="font-black text-emerald-500 uppercase text-sm mb-4 flex items-center gap-2"><Flag size={16} fill="currentColor" /> Green Flags</h4>
+                    <div className="flex gap-2 mb-4 w-full">
+                      <input type="text" value={newGreenFlag} onChange={(e) => setNewGreenFlag(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addGreenFlag()} placeholder="z.B. Humor..." className="flex-1 min-w-0 bg-white border-none rounded-xl px-3 py-2 font-bold text-xs outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                      <button onClick={addGreenFlag} disabled={!newGreenFlag.trim()} className="shrink-0 bg-emerald-500 text-white p-2 rounded-xl hover:bg-emerald-600 transition-colors disabled:opacity-50"><Plus size={18} /></button>
+                    </div>
+                    <div className="space-y-2">
+                      {profileData.greenFlags?.map(flag => (
+                        <div key={flag.id} className="flex items-center justify-between bg-white p-3 rounded-xl shadow-sm group">
+                          <span className="font-bold text-xs text-slate-700">{flag.text}</span>
+                          <button onClick={() => removeGreenFlag(flag.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
           </div>
         ))}
 
@@ -2384,6 +2671,110 @@ const App = () => {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: WISHLIST */}
+                  {profileData.activeModules.includes('wishlist') && profileData.wishlist?.length > 0 && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Gift size={12}/> Wunschliste</p>
+                      <div className="grid grid-cols-1 gap-4">
+                        {profileData.wishlist.map(wish => (
+                          <div key={wish.id} className="bg-white p-3 rounded-[2rem] flex items-center gap-4 border border-slate-100 shadow-sm relative overflow-hidden group">
+                            {wish.image ? (
+                              <img src={wish.image} className="w-20 h-20 rounded-2xl object-cover shadow-sm shrink-0" alt={wish.name} />
+                            ) : (
+                              <div className="w-20 h-20 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 shrink-0"><Gift size={24} /></div>
+                            )}
+                            <div className="flex-1 overflow-hidden pr-2 z-10">
+                              <h4 className="font-black text-slate-800 text-sm truncate mb-1">{wish.name || 'Wunsch'}</h4>
+                              <div className="flex items-center gap-1 mb-2">
+                                {[...Array(wish.urgency || 0)].map((_, i) => <Star key={i} size={10} className="text-yellow-400 fill-yellow-400" />)}
+                              </div>
+                              {wish.link && (
+                                <a href={wish.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded-lg hover:bg-slate-200 transition-colors">
+                                  <LinkIcon size={10} /> Zum Produkt
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: TOP 5 EMOJIS */}
+                  {profileData.activeModules.includes('topEmojis') && profileData.topEmojis?.some(e => e) && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Smile size={12}/> Top 5 Emojis</p>
+                      <div className="bg-yellow-50/50 p-6 rounded-[2.5rem] border border-yellow-100 flex justify-center flex-wrap gap-4 sm:gap-6">
+                        {profileData.topEmojis.map((emoji, i) => (
+                          emoji ? (
+                            <div key={i} className="flex flex-col items-center gap-2 animate-in zoom-in-50 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-2xl shadow-sm border border-yellow-100 flex items-center justify-center text-3xl sm:text-4xl relative">
+                                {emoji}
+                                <div className="absolute -top-2 -left-2 w-5 h-5 bg-yellow-400 text-white rounded-full flex items-center justify-center text-[9px] font-black shadow-sm">
+                                  {i + 1}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: BRAWL STARS */}
+                  {profileData.activeModules.includes('brawlStars') && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Skull size={12} /> Brawl Stars</p>
+                      <div className="bg-yellow-50 p-5 rounded-[2rem] border border-yellow-100/50">
+                        <div className="grid grid-cols-3 gap-2 mb-6 bg-white p-3 rounded-2xl shadow-sm border border-yellow-100">
+                          <div className="text-center">
+                            <p className="text-xl mb-1 drop-shadow-sm">🏆</p>
+                            <p className="font-black text-sm text-slate-800">{profileData.brawlStars?.trophies || '-'}</p>
+                            <p className="text-[7px] font-black uppercase text-yellow-500">Trophäen</p>
+                          </div>
+                          <div className="text-center border-l border-yellow-100">
+                            <p className="text-xl mb-1 drop-shadow-sm">💀</p>
+                            <p className="font-black text-sm text-slate-800 truncate px-1">{profileData.brawlStars?.favoriteBrawler || '-'}</p>
+                            <p className="text-[7px] font-black uppercase text-yellow-500">Main</p>
+                          </div>
+                          <div className="text-center border-l border-yellow-100">
+                            <p className="text-xl mb-1 drop-shadow-sm">💎</p>
+                            <p className="font-black text-sm text-slate-800 truncate px-1">{profileData.brawlStars?.rank || '-'}</p>
+                            <p className="text-[7px] font-black uppercase text-yellow-500">Rang</p>
+                          </div>
+                        </div>
+                        {profileData.brawlStars?.friendLink && (
+                          <a href={profileData.brawlStars.friendLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 transition-colors text-white rounded-xl font-black uppercase text-xs shadow-md">
+                            <LinkIcon size={16} /> Als Freund hinzufügen
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: LIEBLINGSVIDEO */}
+                  {profileData.activeModules.includes('favVideo') && getYoutubeId(profileData.favVideo) && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Youtube size={12} /> Lieblingsvideo</p>
+                      <div className="aspect-video rounded-[2rem] overflow-hidden shadow-md border border-slate-100 bg-black">
+                        <iframe 
+                          width="100%" height="100%" 
+                          src={`https://www.youtube.com/embed/${getYoutubeId(profileData.favVideo)}`} 
+                          title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen></iframe>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: LIEBLINGSPODCAST */}
+                  {profileData.activeModules.includes('favPodcast') && getSpotifyEmbedUrl(profileData.favPodcast) && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Podcast size={12} /> Lieblingspodcast</p>
+                      <div className="rounded-[1rem] overflow-hidden shadow-md border border-slate-100 bg-white">
+                        <iframe style={{borderRadius: '12px'}} src={getSpotifyEmbedUrl(profileData.favPodcast)} width="100%" height="152" frameBorder="0" allowFullScreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
                       </div>
                     </div>
                   )}
@@ -2933,6 +3324,34 @@ const App = () => {
                         {profileData.favSongs.map(s => (
                           <PreviewMusicCard key={s.id} song={s} />
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {profileData.activeModules.includes('flags') && (profileData.redFlags?.length > 0 || profileData.greenFlags?.length > 0) && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Flag size={12}/> Red & Green Flags</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                          <h5 className="font-black text-red-500 uppercase text-[10px] mb-3 flex items-center gap-1"><Flag size={10} fill="currentColor" /> Red Flags</h5>
+                          <ul className="space-y-2">
+                            {profileData.redFlags?.map(flag => (
+                              <li key={flag.id} className="text-xs font-bold text-slate-700 flex items-start gap-2">
+                                <span className="text-red-400 mt-0.5">✕</span> {flag.text}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                          <h5 className="font-black text-emerald-500 uppercase text-[10px] mb-3 flex items-center gap-1"><Flag size={10} fill="currentColor" /> Green Flags</h5>
+                          <ul className="space-y-2">
+                            {profileData.greenFlags?.map(flag => (
+                              <li key={flag.id} className="text-xs font-bold text-slate-700 flex items-start gap-2">
+                                <span className="text-emerald-400 mt-0.5">✓</span> {flag.text}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
                     </div>
                   )}
