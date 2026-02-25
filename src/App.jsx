@@ -8,7 +8,7 @@ import {
   Calendar, Sparkles, PenTool, Hash, Mail, Linkedin, Mic, Square,
   AudioLines, Trophy, BarChart2, Hourglass, PawPrint, StickyNote,
   Backpack, Smartphone, Briefcase, HelpCircle, Images, Lightbulb,
-  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush
+  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush, Coffee
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
@@ -3845,6 +3845,13 @@ const App = () => {
           <p className="font-black uppercase tracking-tight">Modul hinzufügen</p>
         </button>
 
+        <div className="flex justify-center pt-4 pb-8">
+          <a href="https://buymeacoffee.com/adrian_shwg" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 bg-[#FFDD00] text-[#000000] px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
+            <Coffee size={20} strokeWidth={2.5} />
+            <span>Buy me a coffee</span>
+          </a>
+        </div>
+
       </main>
 
       {/* Picker Modals */}
@@ -5011,6 +5018,13 @@ const App = () => {
               ) : (
                 <button onClick={() => { window.location.href = window.location.pathname; }} className={`mt-4 w-full py-5 ${t.bg} text-white rounded-3xl font-black uppercase text-xs active:scale-95 transition-all shadow-xl print-hide`}>Erstelle dein eigenes Freundebuch</button>
               )}
+
+              <div className="flex justify-center mt-6 print-hide">
+                <a href="https://buymeacoffee.com/adrian_shwg" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 bg-[#FFDD00] text-[#000000] px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                  <Coffee size={16} strokeWidth={2.5} />
+                  <span>Buy me a coffee</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
