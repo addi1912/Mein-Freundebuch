@@ -8,7 +8,7 @@ import {
   Calendar, Sparkles, PenTool, Hash, Mail, Linkedin, Mic, Square,
   AudioLines, Trophy, BarChart2, Hourglass, PawPrint, StickyNote,
   Backpack, Smartphone, Briefcase, HelpCircle, Images, Lightbulb,
-  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle
+  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
@@ -128,9 +128,15 @@ const SearchBar = ({ type, onSelect }) => {
         const data = await res.json();
         searchResults = (data.items || []).map(b => ({ id: `book-${b.id}`, title: b.volumeInfo.title, subtitle: b.volumeInfo.authors?.join(', ') || 'Unbekannter Autor', image: b.volumeInfo.imageLinks?.thumbnail?.replace('http:', 'https:') || '' }));
       } else if (type === 'movies') {
-        const res = await fetch(`https://itunes.apple.com/search?term=${encodedQuery}&entity=movie&limit=8&lang=de_de&country=de`);
+        const res = await fetch(`https://de.wikipedia.org/w/api.php?action=query&generator=prefixsearch&gpssearch=${encodedQuery}&gpslimit=8&prop=pageimages|description&piprop=thumbnail&pithumbsize=400&format=json&origin=*`);
         const data = await res.json();
-        searchResults = (data.results || []).map(m => ({ id: `movie-${m.trackId}`, title: m.trackName, subtitle: m.primaryGenreName || 'Film', image: m.artworkUrl100?.replace('100x100', '600x900') }));
+        const pages = Object.values(data.query?.pages || {});
+        searchResults = pages.sort((a, b) => (a.index || 0) - (b.index || 0)).map(p => ({ 
+          id: `movie-${p.pageid}`, 
+          title: p.title, 
+          subtitle: p.description || 'Film / Serie', 
+          image: p.thumbnail?.source 
+        }));
       } else if (type === 'games') {
         const res = await fetch(`https://www.cheapshark.com/api/1.0/games?title=${encodedQuery}&limit=5`);
         const data = await res.json();
@@ -1086,6 +1092,207 @@ const CirclePainterGame = ({ highScore, onNewHighScore }) => {
   );
 };
 
+const DoodlePad = ({ onSave, initialImage, themeConfig }) => {
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [color, setColor] = useState('#000000');
+  const [lineWidth, setLineWidth] = useState(5);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const preventScroll = (e) => e.preventDefault();
+    canvas.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => canvas.removeEventListener('touchmove', preventScroll);
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas && initialImage && !hasDrawn) {
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = initialImage;
+    }
+  }, [initialImage, hasDrawn]);
+
+  const getCoordinates = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if (e.touches && e.touches.length > 0) {
+      return { x: (e.touches[0].clientX - rect.left) * scaleX, y: (e.touches[0].clientY - rect.top) * scaleY };
+    }
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  };
+
+  const startDrawing = (e) => {
+    const coords = getCoordinates(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.beginPath();
+    ctx.moveTo(coords.x, coords.y);
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = color;
+    setIsDrawing(true);
+    setHasDrawn(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    const coords = getCoordinates(e);
+    const ctx = canvasRef.current.getContext('2d');
+    ctx.lineTo(coords.x, coords.y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    onSave(canvasRef.current.toDataURL('image/png'));
+  };
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    setHasDrawn(false);
+    onSave(null);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+        <div className="flex items-center gap-2">
+            <label className="text-[10px] font-black uppercase text-slate-400">Farbe</label>
+            <div className="relative w-8 h-8 rounded-full overflow-hidden shadow-sm border border-slate-200">
+              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] cursor-pointer p-0 border-0" />
+            </div>
+        </div>
+        <div className="flex items-center gap-2 flex-1">
+            <label className="text-[10px] font-black uppercase text-slate-400">Dicke</label>
+            <input type="range" min="1" max="20" value={lineWidth} onChange={(e) => setLineWidth(parseInt(e.target.value))} className="flex-1 accent-slate-800 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" />
+        </div>
+      </div>
+      <div className={`border-2 border-dashed ${themeConfig.dashed} rounded-2xl overflow-hidden relative bg-white`}>
+        <div className="relative">
+          {!hasDrawn && !initialImage && (
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
+              <span className="font-serif italic text-2xl text-slate-300">Zeichne etwas...</span>
+            </div>
+          )}
+          <canvas ref={canvasRef} width={600} height={400} className="w-full h-64 touch-none cursor-crosshair relative z-10" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} />
+          {(hasDrawn || initialImage) && (
+            <button onClick={clear} className="absolute top-2 right-2 p-1.5 bg-white text-red-500 rounded-full shadow-sm hover:scale-110 transition-transform z-20"><Trash2 size={16} /></button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FlagGuessingGame = ({ highScore, onNewHighScore }) => {
+  const [score, setScore] = useState(0);
+  const [currentRound, setCurrentRound] = useState(null);
+  const [gameOver, setGameOver] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const generateRound = () => {
+    const correct = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
+    let options = [correct];
+    while (options.length < 4) {
+      const random = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
+      if (!options.find(o => o.code === random.code)) {
+        options.push(random);
+      }
+    }
+    options = options.sort(() => Math.random() - 0.5);
+    setCurrentRound({ correct, options });
+    setSelected(null);
+  };
+
+  useEffect(() => {
+    generateRound();
+  }, []);
+
+  const handleGuess = (country) => {
+    if (gameOver || selected) return;
+
+    if (country.code === currentRound.correct.code) {
+      setSelected('correct');
+      const newScore = score + 1;
+      setScore(newScore);
+      if (newScore > (highScore || 0)) {
+        onNewHighScore(newScore);
+      }
+      setTimeout(() => {
+        generateRound();
+      }, 1000);
+    } else {
+      setSelected('wrong');
+      setGameOver(true);
+    }
+  };
+
+  const restart = () => {
+    setScore(0);
+    setGameOver(false);
+    generateRound();
+  };
+
+  if (!currentRound) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-6 w-full max-w-sm mx-auto select-none">
+      {!gameOver ? (
+        <>
+          <div className="text-center">
+            <p className="text-xs font-black uppercase text-slate-400 mb-2 tracking-widest">Score: {score}</p>
+            <div className="text-8xl drop-shadow-sm mb-6 transition-transform hover:scale-110 duration-300 cursor-default">
+              {getFlagEmoji(currentRound.correct.code)}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 w-full">
+            {currentRound.options.map((country) => {
+              let btnClass = "bg-white border-2 border-slate-100 text-slate-700 hover:border-indigo-200 hover:bg-indigo-50";
+              if (selected) {
+                if (country.code === currentRound.correct.code) btnClass = "bg-green-500 border-green-500 text-white shadow-md scale-105";
+                else if (selected === 'wrong' && country.code !== currentRound.correct.code) btnClass = "bg-slate-50 border-slate-100 text-slate-300 opacity-50";
+              }
+              
+              return (
+                <button
+                  key={country.code}
+                  onClick={() => handleGuess(country)}
+                  disabled={!!selected}
+                  className={`py-4 px-2 rounded-2xl font-bold text-xs transition-all duration-300 ${btnClass}`}
+                >
+                  {country.name}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <div className="text-center animate-in zoom-in-95">
+          <div className="text-6xl mb-4 grayscale opacity-50">{getFlagEmoji(currentRound.correct.code)}</div>
+          <h3 className="text-2xl font-black text-slate-800 mb-1">Falsch!</h3>
+          <p className="text-sm font-bold text-slate-500 mb-6">Das war {currentRound.correct.name}.<br/>Dein Score: {score}</p>
+          <button onClick={restart} className="bg-indigo-500 text-white px-8 py-3 rounded-2xl font-black uppercase text-sm hover:bg-indigo-600 transition-colors shadow-lg active:scale-95">Nochmal</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // --- Konstanten ---
 
 const THEMES = {
@@ -1147,6 +1354,23 @@ const TIME_CAPSULE_QUESTIONS = [
   { id: 'advice', label: 'Mein Rat an mein zukünftiges Ich:' }
 ];
 
+const COUNTRIES = [
+  { code: 'DE', name: 'Deutschland' }, { code: 'FR', name: 'Frankreich' }, { code: 'IT', name: 'Italien' },
+  { code: 'ES', name: 'Spanien' }, { code: 'US', name: 'USA' }, { code: 'GB', name: 'Großbritannien' },
+  { code: 'JP', name: 'Japan' }, { code: 'CN', name: 'China' }, { code: 'BR', name: 'Brasilien' },
+  { code: 'CA', name: 'Kanada' }, { code: 'AU', name: 'Australien' }, { code: 'RU', name: 'Russland' },
+  { code: 'IN', name: 'Indien' }, { code: 'MX', name: 'Mexiko' }, { code: 'ZA', name: 'Südafrika' },
+  { code: 'EG', name: 'Ägypten' }, { code: 'AR', name: 'Argentinien' }, { code: 'TR', name: 'Türkei' },
+  { code: 'NL', name: 'Niederlande' }, { code: 'BE', name: 'Belgien' }, { code: 'CH', name: 'Schweiz' },
+  { code: 'AT', name: 'Österreich' }, { code: 'SE', name: 'Schweden' }, { code: 'NO', name: 'Norwegen' },
+  { code: 'DK', name: 'Dänemark' }, { code: 'FI', name: 'Finnland' }, { code: 'PL', name: 'Polen' },
+  { code: 'GR', name: 'Griechenland' }, { code: 'PT', name: 'Portugal' }, { code: 'IE', name: 'Irland' },
+  { code: 'KR', name: 'Südkorea' }, { code: 'TH', name: 'Thailand' }, { code: 'VN', name: 'Vietnam' },
+  { code: 'ID', name: 'Indonesien' }, { code: 'NZ', name: 'Neuseeland' }, { code: 'UA', name: 'Ukraine' },
+  { code: 'SA', name: 'Saudi-Arabien' }, { code: 'IL', name: 'Israel' }, { code: 'IR', name: 'Iran' },
+  { code: 'HR', name: 'Kroatien' }, { code: 'CZ', name: 'Tschechien' }, { code: 'HU', name: 'Ungarn' }
+];
+
 const POST_IT_COLORS = ['bg-yellow-200', 'bg-pink-200', 'bg-blue-200', 'bg-green-200', 'bg-purple-200'];
 const POST_IT_ROTATIONS = ['rotate-2', '-rotate-2', 'rotate-1', '-rotate-3', 'rotate-3', '-rotate-1'];
 
@@ -1189,11 +1413,6 @@ const App = () => {
     skills: [], pets: [], relationships: [], timeCapsule: {}, customTimeCapsule: [], friendsQuotes: [], everydayCarry: [],
     career: [], screenTime: [], quiz: [], 
     moodboard: [], 
-    twoTruths: [
-      { id: '1', text: '', isLie: false },
-      { id: '2', text: '', isLie: false },
-      { id: '3', text: '', isLie: false }
-    ],
     redFlags: [], greenFlags: [],
     coc: { trophies: '', builderTrophies: '', townHall: '', builderHall: '', villageImage: null, builderBaseImage: null, friendLink: '' },
     hayday: { level: '', friendCode: '', farmImage: null },
@@ -1210,6 +1429,12 @@ const App = () => {
     slidePuzzle: { image: null },
     wordle: { targetWord: '' },
     circleGame: { score: 0, image: null },
+    flagGuessing: { highScore: 0 },
+    minecraft: { username: '', uuid: '', name_history: [] },
+    steam: { steamid: '', username: '', avatar: '', level: '', gameCount: '', totalPlaytime: '', achievements: '', recentGames: [] },
+    twitch: { username: '', avatar: '', followers: '', isLive: false, title: '', game: '', viewers: '', status: '', lastSeen: '' },
+    chess: { username: '', avatar: '', stats: null },
+    doodle: null,
     wishlist: [],
     topEmojis: ['', '', '', '', ''],
     duolingo: { initialStreak: '', language: '', startDate: null },
@@ -1308,9 +1533,6 @@ const App = () => {
         if (!parsed.moodboard) parsed.moodboard = [];
         if (!parsed.redFlags) parsed.redFlags = [];
         if (!parsed.greenFlags) parsed.greenFlags = [];
-        if (!parsed.twoTruths) parsed.twoTruths = [
-          { id: '1', text: '', isLie: false }, { id: '2', text: '', isLie: false }, { id: '3', text: '', isLie: false }
-        ];
         if (!parsed.coc) parsed.coc = { trophies: '', builderTrophies: '', townHall: '', builderHall: '', villageImage: null, builderBaseImage: null, friendLink: '' };
         if (!parsed.hayday) parsed.hayday = { level: '', friendCode: '', farmImage: null };
         if (!parsed.concerts) parsed.concerts = [];
@@ -1350,11 +1572,6 @@ const App = () => {
             if (!parsed.moodboard) parsed.moodboard = [];
             if (!parsed.redFlags) parsed.redFlags = [];
             if (!parsed.greenFlags) parsed.greenFlags = [];
-            if (!parsed.twoTruths) parsed.twoTruths = [
-              { id: '1', text: '', isLie: false },
-              { id: '2', text: '', isLie: false },
-              { id: '3', text: '', isLie: false }
-            ];
             if (!parsed.coc) parsed.coc = { trophies: '', builderTrophies: '', townHall: '', builderHall: '', villageImage: null, builderBaseImage: null, friendLink: '' };
             if (parsed.coc && parsed.coc.builderTrophies === undefined) parsed.coc.builderTrophies = '';
             if (!parsed.hayday) parsed.hayday = { level: '', friendCode: '', farmImage: null };
@@ -1371,6 +1588,12 @@ const App = () => {
             if (!parsed.slidePuzzle) parsed.slidePuzzle = { image: null };
             if (!parsed.wordle) parsed.wordle = { targetWord: '' };
             if (!parsed.circleGame) parsed.circleGame = { score: 0, image: null };
+            if (!parsed.flagGuessing) parsed.flagGuessing = { highScore: 0 };
+            if (!parsed.minecraft) parsed.minecraft = { username: '', uuid: '', name_history: [] };
+            if (!parsed.steam) parsed.steam = { steamid: '', username: '', avatar: '', level: '', gameCount: '', totalPlaytime: '', achievements: '', recentGames: [] };
+            if (!parsed.twitch) parsed.twitch = { username: '', avatar: '', followers: '', isLive: false, title: '', game: '', viewers: '', status: '', lastSeen: '' };
+            if (!parsed.chess) parsed.chess = { username: '', avatar: '', stats: null };
+            if (parsed.doodle === undefined) parsed.doodle = null;
             if (!parsed.wishlist) parsed.wishlist = [];
             if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
 
@@ -1407,45 +1630,50 @@ const App = () => {
   } : THEMES[profileData.theme] || THEMES.indigo;
 
   const allModules = [
-    { id: 'concerts', name: 'Konzert-Tagebuch', icon: <Ticket className="text-fuchsia-500" />, desc: 'Festivals & Live Gigs' },
-    { id: 'wishlist', name: 'Wunschliste', icon: <Gift className="text-pink-500" />, desc: 'Wünsche & Links' },
-    { id: 'favVideo', name: 'Lieblingsvideo', icon: <Youtube className="text-red-600" />, desc: 'Mein YouTube Favorit' },
-    { id: 'favPodcast', name: 'Lieblingspodcast', icon: <Podcast className="text-green-500" />, desc: 'Mein aktueller Ohrwurm' },
-    { id: 'favCreators', name: 'Lieblings Creator', icon: <Video className="text-purple-600" />, desc: 'YouTuber & Streamer' },
-    { id: 'secretMessage', name: 'Secret Message', icon: <Lock className="text-slate-600" />, desc: 'Verschlüsselte Nachricht' },
-    { id: 'reactionTime', name: 'Reaktionstest', icon: <Zap className="text-yellow-500" />, desc: 'Wie schnell bist du?', isMinigame: true },
-    { id: 'mathDash', name: 'Math Dash', icon: <Calculator className="text-blue-500" />, desc: 'Kopfrechnen gegen die Zeit', isMinigame: true },
-    { id: 'cps', name: 'Pizza Clicker', icon: <MousePointerClick className="text-orange-500" />, desc: 'Speed Challenge', isMinigame: true },
-    { id: 'slidePuzzle', name: 'Slide Puzzle', icon: <Puzzle className="text-indigo-500" />, desc: 'Schiebepuzzle für Freunde', isMinigame: true },
-    { id: 'wordle', name: 'Wordle', icon: <Grid3x3 className="text-emerald-600" />, desc: 'Errate das Wort', isMinigame: true },
-    { id: 'circleGame', name: 'Kreis Zeichnen', icon: <Circle className="text-indigo-500" />, desc: 'Wie rund kannst du malen?', isMinigame: true },
-    { id: 'setup', name: 'Mein Setup', icon: <Monitor className="text-cyan-500" />, desc: 'PC, Konsole & Desk' },
-    { id: 'topEmojis', name: 'Top 5 Emojis', icon: <Smile className="text-yellow-500" />, desc: 'Meine meistgenutzten Emojis' },
-    { id: 'brawlStars', name: 'Brawl Stars', icon: <Skull className="text-yellow-500" />, desc: 'Trophäen & Brawler' },
-    { id: 'hayday', name: 'Hay Day', icon: <Tractor className="text-yellow-600" />, desc: 'Farm Lvl & Code' }, 
-    { id: 'coc', name: 'Clash of Clans', icon: <Swords className="text-amber-500" />, desc: 'Rathaus, Trophäen & Base' }, 
     { id: 'relationships', name: 'Beziehung', icon: <Heart className="text-rose-500 fill-rose-500" />, desc: 'Dein Partner & Dauer' },
-    { id: 'duolingo', name: 'Duolingo Streak', icon: <Languages className="text-emerald-500" />, desc: 'Automatischer Zähler' },
-    { id: 'career', name: 'Werdegang', icon: <Briefcase className="text-blue-600" />, desc: 'Beruf & Ausbildung' },
-    { id: 'screenTime', name: 'Screen-Time', icon: <Smartphone className="text-slate-800" />, desc: 'Meine meistgenutzten Apps' },
-    { id: 'quiz', name: 'Q&A Quiz', icon: <HelpCircle className="text-indigo-500" />, desc: 'Fragen & Antworten (Karten)' },
-    { id: 'moodboard', name: 'Moodboard', icon: <Images className="text-pink-400" />, desc: 'Deine Ästhetik in Bildern' },
-    { id: 'twoTruths', name: '2 Wahrheiten 1 Lüge', icon: <Lightbulb className="text-yellow-500" />, desc: 'Rate mal, was nicht stimmt' },
+    { id: 'brawlStars', name: 'Brawl Stars', icon: <Skull className="text-yellow-500" />, desc: 'Trophäen & Brawler' },
     { id: 'books', name: 'Bücher', icon: <Book className="text-amber-500" />, desc: 'Deine Favoriten' },
-    { id: 'movies', name: 'Filme/Serien', icon: <Film className="text-rose-500" />, desc: 'Was du liebst' },
-    { id: 'songs', name: 'Musik', icon: <Music className="text-indigo-500" />, desc: 'Top Songs' },
-    { id: 'travels', name: 'Reisetagebuch', icon: <Globe className="text-teal-500" />, desc: 'Länder & Fotos' },
-    { id: 'pets', name: 'Haustiere', icon: <PawPrint className="text-amber-700" />, desc: 'Meine tierischen Begleiter' },
-    { id: 'friendsQuotes', name: 'Zitate-Wand', icon: <StickyNote className="text-pink-500" />, desc: 'Insider & Sprüche' },
-    { id: 'everydayCarry', name: 'Everyday Carry', icon: <Backpack className="text-orange-500" />, desc: 'Immer dabei (EDC)' },
-    { id: 'tierList', name: 'Tier List', icon: <Trophy className="text-yellow-500" />, desc: 'Das ultimative Ranking' },
-    { id: 'skills', name: 'Skill-Tree', icon: <BarChart2 className="text-blue-500" />, desc: 'Deine Fähigkeiten in %' },
-    { id: 'timeCapsule', name: 'Zeitkapsel', icon: <Hourglass className="text-violet-500" />, desc: 'Blick in die Zukunft' },
     { id: 'bucketList', name: 'Bucket List', icon: <MapPin className="text-red-500" />, desc: 'Ziele & Träume' },
+    { id: 'chess', name: 'Chess.com', icon: <Crown className="text-emerald-700" />, desc: 'Elo & Stats' },
+    { id: 'coc', name: 'Clash of Clans', icon: <Swords className="text-amber-500" />, desc: 'Rathaus, Trophäen & Base' },
+    { id: 'doodle', name: 'Doodle', icon: <Brush className="text-pink-500" />, desc: 'Zeichne etwas' },
+    { id: 'duolingo', name: 'Duolingo Streak', icon: <Languages className="text-emerald-500" />, desc: 'Automatischer Zähler' },
     { id: 'thisOrThat', name: 'Entweder / Oder', icon: <ArrowRightLeft className="text-purple-500" />, desc: 'Schwere Fragen' },
-    { id: 'quote', name: 'Lieblingszitat', icon: <Quote className="text-slate-500" />, desc: 'Lebensmotto' },
+    { id: 'everydayCarry', name: 'Everyday Carry', icon: <Backpack className="text-orange-500" />, desc: 'Immer dabei (EDC)' },
+    { id: 'movies', name: 'Filme/Serien', icon: <Film className="text-rose-500" />, desc: 'Was du liebst' },
+    { id: 'flagGuessing', name: 'Flaggen Quiz', icon: <Flag className="text-indigo-500" />, desc: 'Errate das Land', isMinigame: true },
     { id: 'games', name: 'Gaming', icon: <Gamepad2 className="text-sky-500" />, desc: 'Aktuelle Spiele' },
-    { id: 'flags', name: 'Red/Green Flags', icon: <Flag className="text-red-500" />, desc: 'No-Gos & Must-Haves' }
+    { id: 'pets', name: 'Haustiere', icon: <PawPrint className="text-amber-700" />, desc: 'Meine tierischen Begleiter' },
+    { id: 'hayday', name: 'Hay Day', icon: <Tractor className="text-yellow-600" />, desc: 'Farm Lvl & Code' }, 
+    { id: 'concerts', name: 'Konzert-Tagebuch', icon: <Ticket className="text-fuchsia-500" />, desc: 'Festivals & Live Gigs' },
+    { id: 'mathDash', name: 'Math Dash', icon: <Calculator className="text-blue-500" />, desc: 'Kopfrechnen gegen die Zeit', isMinigame: true },
+    { id: 'circleGame', name: 'Kreis Zeichnen', icon: <Circle className="text-indigo-500" />, desc: 'Wie rund kannst du malen?', isMinigame: true },
+    { id: 'quote', name: 'Lieblingszitat', icon: <Quote className="text-slate-500" />, desc: 'Lebensmotto' },
+    { id: 'favCreators', name: 'Lieblings Creator', icon: <Video className="text-purple-600" />, desc: 'YouTuber & Streamer' },
+    { id: 'songs', name: 'Musik', icon: <Music className="text-indigo-500" />, desc: 'Top Songs' },
+    { id: 'favPodcast', name: 'Lieblingspodcast', icon: <Podcast className="text-green-500" />, desc: 'Mein aktueller Ohrwurm' },
+    { id: 'favVideo', name: 'Lieblingsvideo', icon: <Youtube className="text-red-600" />, desc: 'Mein YouTube Favorit' },
+    { id: 'setup', name: 'Mein Setup', icon: <Monitor className="text-cyan-500" />, desc: 'PC, Konsole & Desk' },
+    { id: 'minecraft', name: 'Minecraft', icon: <Pickaxe className="text-emerald-600" />, desc: 'Skin & Stats' },
+    { id: 'moodboard', name: 'Moodboard', icon: <Images className="text-pink-400" />, desc: 'Deine Ästhetik in Bildern' },
+    { id: 'cps', name: 'Pizza Clicker', icon: <MousePointerClick className="text-orange-500" />, desc: 'Speed Challenge', isMinigame: true },
+    { id: 'quiz', name: 'Q&A Quiz', icon: <HelpCircle className="text-indigo-500" />, desc: 'Fragen & Antworten (Karten)' },
+    { id: 'reactionTime', name: 'Reaktionstest', icon: <Zap className="text-yellow-500" />, desc: 'Wie schnell bist du?', isMinigame: true },
+    { id: 'flags', name: 'Red/Green Flags', icon: <Flag className="text-red-500" />, desc: 'No-Gos & Must-Haves' },
+    { id: 'travels', name: 'Reisetagebuch', icon: <Globe className="text-teal-500" />, desc: 'Länder & Fotos' },
+    { id: 'screenTime', name: 'Screen-Time', icon: <Smartphone className="text-slate-800" />, desc: 'Meine meistgenutzten Apps' },
+    { id: 'secretMessage', name: 'Secret Message', icon: <Lock className="text-slate-600" />, desc: 'Verschlüsselte Nachricht' },
+    { id: 'skills', name: 'Skill-Tree', icon: <BarChart2 className="text-blue-500" />, desc: 'Deine Fähigkeiten in %' },
+    { id: 'slidePuzzle', name: 'Slide Puzzle', icon: <Puzzle className="text-indigo-500" />, desc: 'Schiebepuzzle für Freunde', isMinigame: true },
+    { id: 'steam', name: 'Steam', icon: <Gamepad className="text-sky-600" />, desc: 'Profil & Stats' },
+    { id: 'tierList', name: 'Tier List', icon: <Trophy className="text-yellow-500" />, desc: 'Das ultimative Ranking' },
+    { id: 'topEmojis', name: 'Top 5 Emojis', icon: <Smile className="text-yellow-500" />, desc: 'Meine meistgenutzten Emojis' },
+    { id: 'twitch', name: 'Twitch', icon: <Twitch className="text-purple-500" />, desc: 'Live-Status & Stats' },
+    { id: 'career', name: 'Werdegang', icon: <Briefcase className="text-blue-600" />, desc: 'Beruf & Ausbildung' },
+    { id: 'wordle', name: 'Wordle', icon: <Grid3x3 className="text-emerald-600" />, desc: 'Errate das Wort', isMinigame: true },
+    { id: 'wishlist', name: 'Wunschliste', icon: <Gift className="text-pink-500" />, desc: 'Wünsche & Links' },
+    { id: 'timeCapsule', name: 'Zeitkapsel', icon: <Hourglass className="text-violet-500" />, desc: 'Blick in die Zukunft' },
+    { id: 'friendsQuotes', name: 'Zitate-Wand', icon: <StickyNote className="text-pink-500" />, desc: 'Insider & Sprüche' }
   ];
 
   const filteredModules = useMemo(() => {
@@ -1661,13 +1889,6 @@ const App = () => {
     setProfileData(prev => ({ ...prev, moodboard: prev.moodboard.filter((_, i) => i !== index) }));
   };
 
-  const handleTwoTruthsChange = (id, text) => {
-    setProfileData(prev => ({ ...prev, twoTruths: prev.twoTruths.map(t => t.id === id ? { ...t, text } : t) }));
-  };
-  const handleTwoTruthsLieSelect = (id) => {
-    setProfileData(prev => ({ ...prev, twoTruths: prev.twoTruths.map(t => ({ ...t, isLie: t.id === id })) }));
-  };
-
   const handleCocImageUpload = (field, e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -1786,6 +2007,135 @@ const App = () => {
     const reader = new FileReader();
     reader.onloadend = () => setProfileData(prev => ({ ...prev, slidePuzzle: { image: reader.result } }));
     reader.readAsDataURL(file);
+  };
+
+  // --- Helpers for Minecraft ---
+  const handleMinecraftSearch = async () => {
+    if (!profileData.minecraft?.username) return;
+    try {
+      const res = await fetch(`https://playerdb.co/api/player/minecraft/${profileData.minecraft.username}`);
+      const data = await res.json();
+      if (data.success) {
+        const p = data.data.player;
+        setProfileData(prev => ({ 
+          ...prev, 
+          minecraft: { 
+            username: p.username, 
+            uuid: p.id,
+            name_history: p.meta?.name_history || []
+          } 
+        }));
+      } else {
+        alert('Spieler nicht gefunden');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Fehler beim Laden der Daten');
+    }
+  };
+
+  // --- Helpers for Steam ---
+  const handleSteamSearch = async () => {
+    if (!profileData.steam?.username) return;
+    try {
+      const res = await fetch(`https://playerdb.co/api/player/steam/${profileData.steam.username}`);
+      const data = await res.json();
+      if (data.success) {
+        const p = data.data.player;
+        setProfileData(prev => ({ 
+          ...prev, 
+          steam: { 
+            ...prev.steam,
+            username: p.username, 
+            steamid: p.id,
+            avatar: p.avatar,
+          } 
+        }));
+      } else {
+        alert('Steam-Profil nicht gefunden');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Fehler beim Laden der Daten');
+    }
+  };
+
+  // --- Helpers for Twitch ---
+  const handleTwitchSearch = async () => {
+    if (!profileData.twitch?.username) return;
+    const username = profileData.twitch.username;
+    try {
+      const [avatarRes, followersRes, uptimeRes, titleRes, gameRes, viewersRes, ivrRes] = await Promise.all([
+        fetch(`https://decapi.me/twitch/avatar/${username}`),
+        fetch(`https://decapi.me/twitch/followcount/${username}`),
+        fetch(`https://decapi.me/twitch/uptime/${username}`),
+        fetch(`https://decapi.me/twitch/title/${username}`),
+        fetch(`https://decapi.me/twitch/game/${username}`),
+        fetch(`https://decapi.me/twitch/viewercount/${username}`),
+        fetch(`https://api.ivr.fi/v2/twitch/user?login=${username}`)
+      ]);
+
+      const avatar = await avatarRes.text();
+      const followers = await followersRes.text();
+      const uptime = await uptimeRes.text();
+      const title = await titleRes.text();
+      const game = await gameRes.text();
+      const viewers = await viewersRes.text();
+      const isLive = !uptime.toLowerCase().includes('offline') && !uptime.includes('not found');
+
+      if (avatar.includes('No user with the name') || followers.includes('not found')) {
+          alert('Twitch-Nutzer nicht gefunden');
+          return;
+      }
+
+      let status = '';
+      let lastSeen = '';
+      try {
+        const ivrData = await ivrRes.json();
+        if (ivrData && ivrData.length > 0) {
+          const user = ivrData[0];
+          if (user.roles.isPartner) status = 'Partner';
+          else if (user.roles.isAffiliate) status = 'Affiliate';
+          if (user.lastBroadcast && user.lastBroadcast.startedAt) lastSeen = user.lastBroadcast.startedAt;
+        }
+      } catch (err) { console.error("IVR API Error", err); }
+
+      setProfileData(prev => ({
+        ...prev,
+        twitch: { username, avatar, followers, isLive, title, game, viewers: isLive ? viewers : '', status, lastSeen }
+      }));
+    } catch (e) {
+      console.error(e);
+      alert('Fehler beim Laden der Twitch-Daten');
+    }
+  };
+
+  // --- Helpers for Chess ---
+  const handleChessSearch = async () => {
+    if (!profileData.chess?.username) return;
+    try {
+      const username = profileData.chess.username;
+      const [profileRes, statsRes] = await Promise.all([
+        fetch(`https://api.chess.com/pub/player/${username}`),
+        fetch(`https://api.chess.com/pub/player/${username}/stats`)
+      ]);
+
+      if (!profileRes.ok) {
+        alert('Spieler nicht gefunden');
+        return;
+      }
+
+      const profile = await profileRes.json();
+      const stats = await statsRes.json();
+
+      setProfileData(prev => ({
+        ...prev,
+        chess: { username: profile.username, avatar: profile.avatar, stats: stats }
+      }));
+    } catch (e) {
+      console.error(e);
+      alert('Fehler beim Laden der Chess.com Daten');
+    }
   };
 
   // --- Helpers for Flags ---
@@ -2444,6 +2794,181 @@ const App = () => {
               </section>
             )}
 
+            {/* FLAG GUESSING MODUL */}
+            {modId === 'flagGuessing' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('flagGuessing')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-indigo-500 mb-6 flex items-center gap-2"><Flag size={20} /> Flaggen Quiz</h3>
+                <FlagGuessingGame highScore={profileData.flagGuessing?.highScore} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, flagGuessing: { highScore: score } }))} />
+                <div className="mt-4 text-center">
+                  <p className="text-xs font-bold text-slate-500">Dein Highscore: <span className="text-slate-900 font-black">{profileData.flagGuessing?.highScore || 0}</span></p>
+                </div>
+              </section>
+            )}
+
+            {/* MINECRAFT MODUL */}
+            {modId === 'minecraft' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('minecraft')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-emerald-600 mb-6 flex items-center gap-2"><Pickaxe size={20} /> Minecraft</h3>
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
+                  <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Username</label>
+                  <div className="flex gap-2 mb-4">
+                    <input type="text" value={profileData.minecraft?.username || ''} onChange={(e) => setProfileData(prev => ({ ...prev, minecraft: { ...prev.minecraft, username: e.target.value } }))} onKeyDown={(e) => e.key === 'Enter' && handleMinecraftSearch()} placeholder="Notch" className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                    <button onClick={handleMinecraftSearch} className="bg-emerald-500 text-white px-5 rounded-xl font-black uppercase text-xs hover:bg-emerald-600 transition-colors">Suchen</button>
+                  </div>
+                  
+                  {profileData.minecraft?.uuid && (
+                    <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col items-center text-center animate-in fade-in zoom-in-95">
+                       <div className="h-48 w-full flex items-center justify-center mb-4 relative">
+                          <div className="absolute inset-0 bg-emerald-50/50 rounded-xl -z-10"></div>
+                          <img src={`https://visage.surgeplay.com/full/512/${profileData.minecraft.uuid}`} className="h-full object-contain drop-shadow-xl" alt="Skin" />
+                       </div>
+                       <p className="font-black text-lg text-slate-800 mb-1">{profileData.minecraft.username}</p>
+                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3">{profileData.minecraft.uuid}</p>
+                       
+                       {profileData.minecraft.name_history && profileData.minecraft.name_history.length > 0 && (
+                         <div className="w-full text-left bg-slate-50 p-3 rounded-xl">
+                           <p className="text-[9px] font-black uppercase text-slate-400 mb-2">Namenshistorie ({profileData.minecraft.name_history.length})</p>
+                           <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto pr-1">
+                             {profileData.minecraft.name_history.slice().reverse().map((h, i) => (
+                               <div key={i} className="flex justify-between items-center text-[10px] font-bold bg-white border border-slate-200 px-2 py-1.5 rounded-md text-slate-600">
+                                 <span>{h.name}</span>
+                                 {h.changedToAt ? <span className="text-slate-400 text-[8px]">{new Date(h.changedToAt).toLocaleDateString()}</span> : <span className="text-slate-300 text-[8px] uppercase">Ursprung</span>}
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       )}
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* STEAM MODUL */}
+            {modId === 'steam' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('steam')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-sky-600 mb-6 flex items-center gap-2"><Gamepad size={20} /> Steam</h3>
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 mb-6">
+                  <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Steam Username / ID</label>
+                  <div className="flex gap-2 mb-4">
+                    <input type="text" value={profileData.steam?.username || ''} onChange={(e) => setProfileData(prev => ({ ...prev, steam: { ...prev.steam, username: e.target.value } }))} onKeyDown={(e) => e.key === 'Enter' && handleSteamSearch()} placeholder="z.B. gaben" className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    <button onClick={handleSteamSearch} className="bg-sky-500 text-white px-5 rounded-xl font-black uppercase text-xs hover:bg-sky-600 transition-colors">Suchen</button>
+                  </div>
+                  {profileData.steam?.avatar && (
+                    <div className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+                      <img src={profileData.steam.avatar} className="w-12 h-12 rounded-xl" alt="Avatar" />
+                      <div>
+                        <p className="font-black text-sm text-slate-800">{profileData.steam.username}</p>
+                        <p className="text-[9px] font-bold text-slate-400">{profileData.steam.steamid}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <input type="text" value={profileData.steam?.level || ''} onChange={(e) => setProfileData(prev => ({ ...prev, steam: { ...prev.steam, level: e.target.value } }))} placeholder="Level (z.B. 42)" className="bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-xs outline-none focus:ring-2 focus:ring-sky-500/20" />
+                  <input type="text" value={profileData.steam?.gameCount || ''} onChange={(e) => setProfileData(prev => ({ ...prev, steam: { ...prev.steam, gameCount: e.target.value } }))} placeholder="Anzahl Spiele" className="bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-xs outline-none focus:ring-2 focus:ring-sky-500/20" />
+                  <input type="text" value={profileData.steam?.totalPlaytime || ''} onChange={(e) => setProfileData(prev => ({ ...prev, steam: { ...prev.steam, totalPlaytime: e.target.value } }))} placeholder="Spielzeit (z.B. 2000h)" className="bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-xs outline-none focus:ring-2 focus:ring-sky-500/20" />
+                  <input type="text" value={profileData.steam?.achievements || ''} onChange={(e) => setProfileData(prev => ({ ...prev, steam: { ...prev.steam, achievements: e.target.value } }))} placeholder="Achievements" className="bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-xs outline-none focus:ring-2 focus:ring-sky-500/20" />
+                </div>
+
+                <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Zuletzt gespielt (Suche)</p>
+                <SearchBar type="games" onSelect={(item) => setProfileData(prev => ({ ...prev, steam: { ...prev.steam, recentGames: [...(prev.steam.recentGames || []), item] } }))} />
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {profileData.steam?.recentGames?.map(game => (
+                    <div key={game.id} className="relative group">
+                      <img src={game.image} className="w-16 h-16 rounded-xl object-cover border border-slate-200" alt={game.title} />
+                      <button onClick={() => setProfileData(prev => ({ ...prev, steam: { ...prev.steam, recentGames: prev.steam.recentGames.filter(g => g.id !== game.id) } }))} className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={10} /></button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* TWITCH MODUL */}
+            {modId === 'twitch' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('twitch')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-purple-500 mb-6 flex items-center gap-2"><Twitch size={20} /> Twitch</h3>
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
+                  <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Twitch Username</label>
+                  <div className="flex gap-2 mb-4">
+                    <input type="text" value={profileData.twitch?.username || ''} onChange={(e) => setProfileData(prev => ({ ...prev, twitch: { ...prev.twitch, username: e.target.value } }))} onKeyDown={(e) => e.key === 'Enter' && handleTwitchSearch()} placeholder="ninja" className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-purple-500/20" />
+                    <button onClick={handleTwitchSearch} className="bg-purple-500 text-white px-5 rounded-xl font-black uppercase text-xs hover:bg-purple-600 transition-colors">Suchen</button>
+                  </div>
+                  
+                  {profileData.twitch?.avatar && (
+                    <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in zoom-in-95">
+                      <div className="relative">
+                        <img src={profileData.twitch.avatar} className="w-16 h-16 rounded-full border-2 border-purple-100" alt="Avatar" />
+                        {profileData.twitch.isLive ? (
+                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm border-2 border-white">Live</div>
+                        ) : (
+                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-slate-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm border-2 border-white">Offline</div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-black text-lg text-slate-800">{profileData.twitch.username}</p>
+                        <p className="text-xs font-bold text-purple-500">{profileData.twitch.followers} Follower</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {profileData.twitch?.title && (
+                    <div className="bg-purple-50 p-3 rounded-2xl border border-purple-100 mt-3">
+                      {profileData.twitch.status && <span className="text-[8px] font-black uppercase bg-purple-200 text-purple-700 px-2 py-0.5 rounded-md mb-2 inline-block">{profileData.twitch.status}</span>}
+                      <p className="text-[9px] font-black uppercase text-purple-400 mb-1">{profileData.twitch.isLive ? 'Aktueller Stream' : 'Letzter Stream'}</p>
+                      <p className="font-bold text-xs text-slate-800 leading-tight mb-1">{profileData.twitch.title}</p>
+                      <p className="text-[10px] font-bold text-purple-600">{profileData.twitch.game}</p>
+                      {profileData.twitch.isLive && <p className="text-[10px] font-bold text-red-500 mt-1 flex items-center gap-1"><Users size={10}/> {profileData.twitch.viewers}</p>}
+                      {!profileData.twitch.isLive && profileData.twitch.lastSeen && <p className="text-[9px] text-slate-400 mt-1">Zuletzt gesehen: {new Date(profileData.twitch.lastSeen).toLocaleDateString()}</p>}
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* CHESS MODUL */}
+            {modId === 'chess' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('chess')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-emerald-700 mb-6 flex items-center gap-2"><Crown size={20} /> Chess.com</h3>
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
+                  <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Username</label>
+                  <div className="flex gap-2 mb-4">
+                    <input type="text" value={profileData.chess?.username || ''} onChange={(e) => setProfileData(prev => ({ ...prev, chess: { ...prev.chess, username: e.target.value } }))} onKeyDown={(e) => e.key === 'Enter' && handleChessSearch()} placeholder="MagnusCarlsen" className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                    <button onClick={handleChessSearch} className="bg-emerald-700 text-white px-5 rounded-xl font-black uppercase text-xs hover:bg-emerald-800 transition-colors">Suchen</button>
+                  </div>
+                  
+                  {profileData.chess?.stats && (
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                        {['rapid', 'blitz', 'bullet'].map(mode => {
+                            const modeStats = profileData.chess.stats[`chess_${mode}`];
+                            return (
+                                <div key={mode} className="bg-white p-2 rounded-xl border border-slate-200">
+                                    <p className="text-[9px] font-black uppercase text-slate-400 mb-1">{mode}</p>
+                                    <p className="font-black text-slate-800">{modeStats?.last?.rating || '-'}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* DOODLE MODUL */}
+            {modId === 'doodle' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('doodle')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-pink-500 mb-6 flex items-center gap-2"><Brush size={20} /> Doodle</h3>
+                <DoodlePad initialImage={profileData.doodle} onSave={(img) => setProfileData(prev => ({ ...prev, doodle: img }))} themeConfig={t} />
+              </section>
+            )}
+
             {/* WORDLE MODUL */}
             {modId === 'wordle' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
@@ -2715,26 +3240,6 @@ const App = () => {
                     <span className="text-[10px] font-black uppercase mt-2">Bilder</span>
                     <input type="file" accept="image/*" multiple className="hidden" onChange={handleMoodboardImageUpload} />
                   </label>
-                </div>
-              </section>
-            )}
-
-            {/* Zwei Wahrheiten eine Lüge */}
-            {modId === 'twoTruths' && (
-              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('twoTruths')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
-                <h3 className="text-xl font-black uppercase text-yellow-500 mb-6 flex items-center gap-2"><Lightbulb size={20} /> 2 Wahrheiten, 1 Lüge</h3>
-                <p className="text-xs font-bold text-slate-500 mb-4">Trage drei Fakten ein und markiere (x), welcher davon die Lüge ist.</p>
-                <div className="space-y-3">
-                  {(profileData.twoTruths || []).map((item, idx) => (
-                    <div key={item.id} className={`flex items-center gap-3 p-3 rounded-2xl border ${item.isLie ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
-                      <button onClick={() => handleTwoTruthsLieSelect(item.id)} className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${item.isLie ? 'bg-red-500 border-red-500 text-white' : 'border-slate-300 text-transparent hover:border-slate-400'}`}>
-                        <X size={14} strokeWidth={3} />
-                      </button>
-                      <input type="text" value={item.text} onChange={(e) => handleTwoTruthsChange(item.id, e.target.value)} placeholder={`Fakt ${idx + 1}...`} className="flex-1 bg-transparent border-none font-bold text-sm outline-none" />
-                      {item.isLie && <span className="text-[10px] font-black uppercase text-red-500 mr-2 shrink-0">Lüge</span>}
-                    </div>
-                  ))}
                 </div>
               </section>
             )}
@@ -3700,6 +4205,213 @@ const App = () => {
                     </div>
                   )}
 
+                  {/* VORSCHAU: FLAG GUESSING */}
+                  {profileData.activeModules.includes('flagGuessing') && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}>
+                        <Flag size={12} /> Flaggen Quiz
+                        <span className={`ml-auto text-[7px] px-1.5 py-0.5 rounded-md ${t.bg} text-white tracking-normal`}>MINIGAME</span>
+                      </p>
+                      <div className="bg-indigo-50 p-6 rounded-[2.5rem] border border-indigo-100 text-center">
+                        <div className="text-4xl mb-2">🌍</div>
+                        <p className="text-4xl font-black text-slate-800 mb-1">{profileData.flagGuessing?.highScore || 0}</p>
+                        <p className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Highscore</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: MINECRAFT */}
+                  {profileData.activeModules.includes('minecraft') && profileData.minecraft?.uuid && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Pickaxe size={12} /> Minecraft</p>
+                      <div className="bg-emerald-50 p-6 rounded-[2.5rem] border border-emerald-100 text-center relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#10b981 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+                        <div className="relative z-10 flex flex-col items-center">
+                          <div className="h-64 w-full flex items-center justify-center mb-6 drop-shadow-2xl">
+                            <img src={`https://visage.surgeplay.com/full/512/${profileData.minecraft.uuid}`} className="h-full object-contain" alt="Skin" />
+                          </div>
+                          <p className="text-xl font-black text-slate-800 mb-1">{profileData.minecraft.username}</p>
+                          <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest bg-white/60 px-2 py-1 rounded-md mb-4 backdrop-blur-sm">{profileData.minecraft.uuid}</p>
+                          
+                          {profileData.minecraft.name_history && profileData.minecraft.name_history.length > 0 && (
+                             <div className="bg-white/60 backdrop-blur-sm p-3 rounded-2xl w-full border border-emerald-100/50 text-left">
+                               <p className="text-[8px] font-black uppercase text-emerald-700 mb-2 tracking-wider text-center">Namenshistorie</p>
+                               <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto no-scrollbar">
+                                 {profileData.minecraft.name_history.slice().reverse().map((h, i) => (
+                                   <div key={i} className="flex justify-between items-center text-[9px] font-bold bg-white border border-emerald-100 px-2 py-1.5 rounded-lg text-emerald-800 shadow-sm">
+                                      <span>{h.name}</span>
+                                      {h.changedToAt ? <span className="text-emerald-600/60 text-[8px]">{new Date(h.changedToAt).toLocaleDateString()}</span> : <span className="text-emerald-400/50 text-[8px] uppercase">Ursprung</span>}
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+                          )}
+                          
+                          <a href={`https://crafatar.com/skins/${profileData.minecraft.uuid}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 transition-colors shadow-md">
+                            <Download size={12} /> Skin Download
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: STEAM */}
+                  {profileData.activeModules.includes('steam') && profileData.steam?.steamid && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Gamepad size={12} /> Steam</p>
+                      <div className="bg-[#171a21] p-5 rounded-[2rem] text-white relative overflow-hidden shadow-lg">
+                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#1b2838] to-[#171a21] z-0"></div>
+                        <div className="relative z-10">
+                          <div className="flex items-center gap-4 mb-6">
+                            <div className="relative">
+                              <img src={profileData.steam.avatar} className="w-16 h-16 rounded-none border-2 border-[#66c0f4]" alt="Avatar" />
+                              {profileData.steam.level && <div className="absolute -bottom-2 -right-2 bg-[#171a21] border border-[#66c0f4] rounded-full w-6 h-6 flex items-center justify-center text-[9px] font-bold">{profileData.steam.level}</div>}
+                            </div>
+                            <div>
+                              <p className="font-bold text-lg text-[#66c0f4]">{profileData.steam.username}</p>
+                              <p className="text-[9px] text-slate-400">{profileData.steam.steamid}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-2 mb-6 text-center">
+                            <div className="bg-[#1b2838] p-2 rounded-lg border border-[#2a475e]">
+                              <p className="text-xs font-bold text-white">{profileData.steam.gameCount || '-'}</p>
+                              <p className="text-[7px] uppercase text-[#66c0f4]">Spiele</p>
+                            </div>
+                            <div className="bg-[#1b2838] p-2 rounded-lg border border-[#2a475e]">
+                              <p className="text-xs font-bold text-white">{profileData.steam.totalPlaytime || '-'}</p>
+                              <p className="text-[7px] uppercase text-[#66c0f4]">Stunden</p>
+                            </div>
+                            <div className="bg-[#1b2838] p-2 rounded-lg border border-[#2a475e]">
+                              <p className="text-xs font-bold text-white">{profileData.steam.achievements || '-'}</p>
+                              <p className="text-[7px] uppercase text-[#66c0f4]">Erfolge</p>
+                            </div>
+                          </div>
+
+                          {profileData.steam.recentGames?.length > 0 && (
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                              {profileData.steam.recentGames.map(game => (
+                                <img key={game.id} src={game.image} className="w-24 h-14 object-cover rounded-md border border-[#2a475e] shrink-0" alt={game.title} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: TWITCH */}
+                  {profileData.activeModules.includes('twitch') && profileData.twitch?.avatar && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Twitch size={12} /> Twitch</p>
+                      <div className="bg-[#9146FF] p-6 rounded-[2.5rem] text-white relative overflow-hidden shadow-lg">
+                         <div className="absolute top-0 right-0 p-6 opacity-10"><Twitch size={80} /></div>
+                         <div className="relative z-10 flex flex-col items-center">
+                            <div className="relative mb-4">
+                              <img src={profileData.twitch.avatar} className={`w-24 h-24 rounded-full border-4 border-white shadow-md ${profileData.twitch.isLive ? 'ring-4 ring-red-500 ring-offset-2 ring-offset-[#9146FF]' : ''}`} alt="Avatar" />
+                              {profileData.twitch.isLive ? (
+                                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-sm border-2 border-[#9146FF]">Live</div>
+                              ) : (
+                                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-slate-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-sm border-2 border-[#9146FF]">Offline</div>
+                              )}
+                            </div>
+                            <p className="font-black text-2xl mb-1">{profileData.twitch.username}</p>
+                            <p className="text-xs font-bold opacity-90 uppercase tracking-wider mb-6">{profileData.twitch.followers} Follower</p>
+                            
+                            {profileData.twitch.status && (
+                              <span className="bg-white/20 px-3 py-1 rounded-lg text-[9px] font-black uppercase mb-6 backdrop-blur-sm">{profileData.twitch.status}</span>
+                            )}
+
+                            {(profileData.twitch.title || profileData.twitch.game) && (
+                              <div className="bg-white/10 rounded-2xl p-4 w-full text-center mb-6 backdrop-blur-sm border border-white/10">
+                                {profileData.twitch.isLive ? (
+                                  <>
+                                    <p className="text-[9px] font-bold opacity-80 uppercase tracking-wider mb-2 text-red-300">Jetzt Live</p>
+                                    <p className="font-black text-sm leading-tight mb-1 line-clamp-2">{profileData.twitch.title}</p>
+                                    <p className="text-xs font-bold text-purple-200 mb-2">{profileData.twitch.game}</p>
+                                    <p className="text-[10px] font-bold flex items-center justify-center gap-1 bg-red-500/20 py-1 rounded-lg"><Users size={10}/> {profileData.twitch.viewers} Zuschauer</p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-[9px] font-bold opacity-60 uppercase tracking-wider mb-2">Zuletzt Online</p>
+                                    {profileData.twitch.lastSeen && <p className="font-bold text-xs mb-1">{new Date(profileData.twitch.lastSeen).toLocaleDateString()}</p>}
+                                    <p className="text-[10px] opacity-80 line-clamp-1 italic">"{profileData.twitch.title}"</p>
+                                    <p className="text-[10px] text-purple-200 mt-0.5">{profileData.twitch.game}</p>
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            <a href={`https://twitch.tv/${profileData.twitch.username}`} target="_blank" rel="noopener noreferrer" className="bg-white text-[#9146FF] px-6 py-3 rounded-xl font-black uppercase text-xs hover:bg-purple-50 transition-colors shadow-md inline-flex items-center gap-2">
+                              <Twitch size={16} /> Zum Kanal
+                            </a>
+                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: CHESS */}
+                  {profileData.activeModules.includes('chess') && profileData.chess?.stats && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Crown size={12} /> Chess.com</p>
+                      <div className="bg-[#312e2b] p-5 rounded-[2rem] text-white relative overflow-hidden shadow-lg">
+                         <div className="flex items-center gap-4 mb-6">
+                            <img src={profileData.chess.avatar || 'https://www.chess.com/bundles/web/images/user-image.svg'} className="w-16 h-16 rounded-xl border-2 border-[#81b64c]" alt="Avatar" />
+                            <div>
+                                <p className="font-black text-lg text-[#81b64c]">{profileData.chess.username}</p>
+                                <p className="text-[9px] text-slate-400">Chess.com Profil</p>
+                            </div>
+                         </div>
+                         <div className="space-y-3">
+                            {['rapid', 'blitz', 'bullet'].map(mode => {
+                                const modeStats = profileData.chess.stats[`chess_${mode}`];
+                                if (!modeStats) return null;
+                                const record = modeStats.record;
+                                const totalGames = record ? record.win + record.loss + record.draw : 0;
+                                return (
+                                    <div key={mode} className="bg-[#262421] p-3 rounded-xl border border-[#403d39]">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${mode === 'rapid' ? 'bg-green-500' : mode === 'blitz' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                                                <span className="font-bold text-xs capitalize text-slate-300">{mode}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-black text-sm">{modeStats.last?.rating || '?'}</p>
+                                                <p className="text-[8px] text-slate-500">Best: {modeStats.best?.rating || '-'}</p>
+                                            </div>
+                                        </div>
+                                        {record && totalGames > 0 && (
+                                            <>
+                                                <div className="flex gap-0.5 h-1.5 rounded-full overflow-hidden bg-slate-700 mb-1">
+                                                    <div style={{width: `${(record.win / totalGames) * 100}%`}} className="bg-[#81b64c]"></div>
+                                                    <div style={{width: `${(record.draw / totalGames) * 100}%`}} className="bg-slate-400"></div>
+                                                    <div style={{width: `${(record.loss / totalGames) * 100}%`}} className="bg-[#fa412d]"></div>
+                                                </div>
+                                                <div className="flex justify-between text-[8px] text-slate-500 font-bold">
+                                                    <span className="text-[#81b64c]">{record.win} W</span>
+                                                    <span className="text-slate-400">{record.draw} D</span>
+                                                    <span className="text-[#fa412d]">{record.loss} L</span>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VORSCHAU: DOODLE */}
+                  {profileData.activeModules.includes('doodle') && profileData.doodle && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Brush size={12}/> Doodle</p>
+                      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden p-2">
+                        <img src={profileData.doodle} className="w-full h-auto object-contain rounded-2xl" alt="Doodle" />
+                      </div>
+                    </div>
+                  )}
+
                   {/* VORSCHAU: SECRET MESSAGE */}
                   {profileData.activeModules.includes('secretMessage') && profileData.secretMessage?.message && (
                     <PreviewSecretMessage data={profileData.secretMessage} themeConfig={t} />
@@ -3919,31 +4631,6 @@ const App = () => {
                         {profileData.moodboard.map((img, i) => (
                           <img key={i} src={img} className="w-full rounded-xl object-cover shadow-sm break-inside-avoid border border-slate-100" alt="Mood" />
                         ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* VORSCHAU ZWEI WAHRHEITEN, EINE LÜGE */}
-                  {profileData.activeModules.includes('twoTruths') && profileData.twoTruths?.some(t => t.text.trim() !== '') && (
-                    <div>
-                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Lightbulb size={12}/> 2 Wahrheiten, 1 Lüge</p>
-                      <div className="bg-yellow-50 p-6 rounded-[2.5rem] relative shadow-inner">
-                        <div className="space-y-3 relative z-10">
-                          {profileData.twoTruths.map((item, idx) => {
-                            if (!item.text.trim()) return null;
-                            return (
-                              <div key={item.id} className="flex items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border border-yellow-100">
-                                <div className="w-6 h-6 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center font-black text-xs shrink-0">{idx + 1}</div>
-                                <span className="font-bold text-sm text-slate-700">{item.text}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                        <div className="mt-8 mb-2 flex justify-center">
-                           <p className="text-[9px] font-black uppercase text-slate-400 rotate-180 inline-block tracking-widest text-center opacity-60">
-                             Auflösung: Aussage Nr. {profileData.twoTruths.findIndex(t => t.isLie) + 1} ist die Lüge!
-                           </p>
-                        </div>
                       </div>
                     </div>
                   )}
