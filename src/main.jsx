@@ -50,6 +50,8 @@ const Main = () => {
   };
 
   useEffect(() => {
+    document.documentElement.lang = 'de'; // SEO: Sprache auf Deutsch setzen
+
     const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
     link.type = 'image/svg+xml';
     link.rel = 'icon';

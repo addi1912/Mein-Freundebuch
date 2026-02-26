@@ -1629,6 +1629,28 @@ const Dashboard = ({ auth, db, isConfigured, onLoginRequest }) => {
   const [showLoadingError, setShowLoadingError] = useState(false);
 
   useEffect(() => {
+    // SEO: Titel & Beschreibung dynamisch setzen
+    const baseTitle = "Mein Freundebuch";
+    document.title = profileData.name ? `${profileData.name} | ${baseTitle}` : baseTitle;
+
+    let metaDesc = document.querySelector("meta[name='description']");
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = "description";
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = profileData.name 
+      ? `Sieh dir das Freundebuch-Profil von ${profileData.name} an. ${profileData.bio || ''}`
+      : "Dein digitales Freundebuch. Gestalte dein Profil und teile es mit Freunden.";
+
+    // Browser Theme Color anpassen (für Mobile Leiste)
+    let metaTheme = document.querySelector("meta[name='theme-color']");
+    if (metaTheme) {
+      metaTheme.content = profileData.customColor || '#6366f1';
+    }
+  }, [profileData.name, profileData.bio, profileData.customColor]);
+
+  useEffect(() => {
     let timer;
     if (loading) {
       timer = setTimeout(() => setShowLoadingError(true), 5000);
@@ -1747,13 +1769,6 @@ const Dashboard = ({ auth, db, isConfigured, onLoginRequest }) => {
       return;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const idParam = params.get('id');
-    if (idParam) {
-      setSharedId(idParam);
-      setShowPreview(true);
-    }
-
     const initAuth = async () => {
       try {
         if (!auth.currentUser) {
@@ -1817,11 +1832,23 @@ const Dashboard = ({ auth, db, isConfigured, onLoginRequest }) => {
   useEffect(() => {
     if (!isConfigured) return;
     
-    const targetUid = sharedId || uid;
-    if (!targetUid) return;
+    // URL Parameter direkt hier lesen, um State-Verzögerung zu vermeiden
+    const params = new URLSearchParams(window.location.search);
+    const idParam = params.get('id');
+    const targetUid = idParam || uid;
+
+    if (!targetUid) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setIsOwner(!!uid && uid === targetUid);
+    
+    if (idParam) {
+      setSharedId(idParam);
+      setShowPreview(true);
+    }
 
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', targetUid);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
@@ -1912,7 +1939,7 @@ const Dashboard = ({ auth, db, isConfigured, onLoginRequest }) => {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [uid, sharedId, isConfigured]);
+  }, [uid, isConfigured]);
 
   const handleLogout = async () => {
     if (!auth) return;

@@ -1,7 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Smile, ArrowRight, Database, Shield, Palette } from 'lucide-react';
 
 const LandingPage = ({ onEnter }) => {
+  useEffect(() => {
+    document.title = "Mein Freundebuch - Das digitale Poesiealbum & Freundebuch";
+    let meta = document.querySelector("meta[name='description']");
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = "description";
+      document.head.appendChild(meta);
+    }
+    meta.content = "Erstelle dein persönliches Freundebuch Profil. Kostenlos, sicher und modern. Teile deinen Link und lass Freunde sich eintragen.";
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 font-sans selection:bg-indigo-100">
       <div className="max-w-4xl w-full text-center space-y-12 animate-in fade-in-up duration-1000">
