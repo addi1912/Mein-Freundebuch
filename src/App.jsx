@@ -1408,9 +1408,89 @@ const ScrollReveal = ({ children, className = '', ...props }) => {
   );
 };
 
+const getInitialProfileData = () => ({
+  name: '', bio: '', avatar: null, coverImage: null, birthdate: '', tags: [], funFact: '',
+  signature: null, voiceNote: null, theme: 'indigo', customColor: '#6366f1',
+  darkMode: false,
+  profileDetails: [], favSongs: [], favBooks: [], favMovies: [], bucketList: [], thisOrThat: {},
+  quote: { text: '', author: '' }, games: [], travels: [],
+  tierLists: [{ id: Date.now().toString(), topic: '', items: [] }],
+  skills: [], pets: [], relationships: [], timeCapsule: {}, customTimeCapsule: [], friendsQuotes: [], everydayCarry: [],
+  career: [], screenTime: [], quiz: [], 
+  moodboard: [], 
+  redFlags: [], greenFlags: [],
+  coc: { trophies: '', builderTrophies: '', townHall: '', builderHall: '', villageImage: null, builderBaseImage: null, friendLink: '' },
+  hayday: { level: '', friendCode: '', farmImage: null },
+  concerts: [],
+  brawlStars: { trophies: '', favoriteBrawler: '', rank: '', friendLink: '' },
+  favVideo: '',
+  favPodcast: '',
+  favCreators: [],
+  setup: { images: [], components: [] },
+  secretMessage: { question: '', answer: '', message: '' },
+  reactionTime: null,
+  cpsScore: 0,
+  mathDashScore: 0,
+  slidePuzzle: { image: null },
+  wordle: { targetWord: '' },
+  circleGame: { score: 0, image: null },
+  flagGuessing: { highScore: 0 },
+  minecraft: { username: '', uuid: '', name_history: [] },
+  steam: { steamid: '', username: '', avatar: '', level: '', gameCount: '', totalPlaytime: '', achievements: '', recentGames: [] },
+  twitch: { username: '', avatar: '', followers: '', isLive: false, title: '', game: '', viewers: '', status: '', lastSeen: '' },
+  chess: { username: '', avatar: '', stats: null },
+  doodle: null,
+  wishlist: [],
+  countdowns: [],
+  topEmojis: ['', '', '', '', ''],
+  streak: { count: 0, lastPlayed: null },
+  duolingo: { initialStreak: '', language: '', startDate: null },
+  socials: {}, activeModules: [], lastUpdated: Date.now()
+});
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    this.setState({ error, errorInfo });
+    console.error("App Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-red-50 text-red-900 font-sans text-center">
+          <div className="max-w-md w-full bg-white p-8 rounded-[2rem] shadow-xl border border-red-100">
+            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle size={32} />
+            </div>
+            <h2 className="text-xl font-black mb-2 text-slate-800">Ein Fehler ist aufgetreten</h2>
+            <p className="text-sm font-bold mb-6 text-slate-500">Bitte mache einen Screenshot hiervon und sende ihn an den Entwickler:</p>
+            <div className="bg-slate-900 text-slate-200 p-4 rounded-xl text-[10px] font-mono text-left overflow-auto max-h-64 mb-6 shadow-inner">
+              <p className="text-red-400 font-bold mb-2">{this.state.error && this.state.error.toString()}</p>
+              <pre className="whitespace-pre-wrap opacity-70">{this.state.errorInfo && this.state.errorInfo.componentStack}</pre>
+            </div>
+            <button onClick={() => window.location.reload()} className="w-full py-4 bg-red-500 text-white rounded-xl font-black uppercase text-xs hover:bg-red-600 transition-colors shadow-lg active:scale-95">
+              Seite neu laden
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // --- Main App Component ---
 
-const App = ({ auth, db, isConfigured, onLoginRequest }) => {
+const Dashboard = ({ auth, db, isConfigured, onLoginRequest }) => {
   // ⚠️ Wenn Firebase noch nicht konfiguriert wurde, zeige direkt diesen Hinweisscreen!
   if (isConfigured === false) {
     return (
@@ -1481,45 +1561,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     }
   };
 
-  const [profileData, setProfileData] = useState({
-    name: '', bio: '', avatar: null, coverImage: null, birthdate: '', tags: [], funFact: '',
-    signature: null, voiceNote: null, theme: 'indigo', customColor: '#6366f1',
-    darkMode: false,
-    profileDetails: [], favSongs: [], favBooks: [], favMovies: [], bucketList: [], thisOrThat: {},
-    quote: { text: '', author: '' }, games: [], travels: [],
-    tierLists: [{ id: Date.now().toString(), topic: '', items: [] }],
-    skills: [], pets: [], relationships: [], timeCapsule: {}, customTimeCapsule: [], friendsQuotes: [], everydayCarry: [],
-    career: [], screenTime: [], quiz: [], 
-    moodboard: [], 
-    redFlags: [], greenFlags: [],
-    coc: { trophies: '', builderTrophies: '', townHall: '', builderHall: '', villageImage: null, builderBaseImage: null, friendLink: '' },
-    hayday: { level: '', friendCode: '', farmImage: null },
-    concerts: [], // NEU: Konzert Tagebuch
-    brawlStars: { trophies: '', favoriteBrawler: '', rank: '', friendLink: '' },
-    favVideo: '',
-    favPodcast: '',
-    favCreators: [],
-    setup: { images: [], components: [] },
-    secretMessage: { question: '', answer: '', message: '' },
-    reactionTime: null,
-    cpsScore: 0,
-    mathDashScore: 0,
-    slidePuzzle: { image: null },
-    wordle: { targetWord: '' },
-    circleGame: { score: 0, image: null },
-    flagGuessing: { highScore: 0 },
-    minecraft: { username: '', uuid: '', name_history: [] },
-    steam: { steamid: '', username: '', avatar: '', level: '', gameCount: '', totalPlaytime: '', achievements: '', recentGames: [] },
-    twitch: { username: '', avatar: '', followers: '', isLive: false, title: '', game: '', viewers: '', status: '', lastSeen: '' },
-    chess: { username: '', avatar: '', stats: null },
-    doodle: null,
-    wishlist: [],
-    countdowns: [],
-    topEmojis: ['', '', '', '', ''],
-    streak: { count: 0, lastPlayed: null },
-    duolingo: { initialStreak: '', language: '', startDate: null },
-    socials: {}, activeModules: [], lastUpdated: Date.now()
-  });
+  const [profileData, setProfileData] = useState(getInitialProfileData());
 
   const [loading, setLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
@@ -1563,7 +1605,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   const [newRedFlag, setNewRedFlag] = useState('');
   const [newGreenFlag, setNewGreenFlag] = useState('');
 
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(auth?.currentUser || null);
   const [isOwner, setIsOwner] = useState(true);
   const [sharedId, setSharedId] = useState(null);
   const [showShareAlert, setShowShareAlert] = useState(false);
@@ -1582,6 +1624,16 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [profileNotFound, setProfileNotFound] = useState(false);
+
+  const [showLoadingError, setShowLoadingError] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    if (loading) {
+      timer = setTimeout(() => setShowLoadingError(true), 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   const handleDragStart = (e, index) => {
     setDraggedModuleIdx(index);
@@ -1774,26 +1826,8 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
       if (docSnap.exists()) {
         setProfileNotFound(false);
         const parsed = docSnap.data();
-        if (!parsed.career) parsed.career = [];
-        if (!parsed.screenTime) parsed.screenTime = [];
-        if (!parsed.quiz) parsed.quiz = [];
-        if (!parsed.moodboard) parsed.moodboard = [];
-        if (!parsed.redFlags) parsed.redFlags = [];
-        if (!parsed.greenFlags) parsed.greenFlags = [];
-        if (!parsed.coc) parsed.coc = { trophies: '', builderTrophies: '', townHall: '', builderHall: '', villageImage: null, builderBaseImage: null, friendLink: '' };
-        if (!parsed.hayday) parsed.hayday = { level: '', friendCode: '', farmImage: null };
-        if (!parsed.concerts) parsed.concerts = [];
-        if (!parsed.brawlStars) parsed.brawlStars = { trophies: '', favoriteBrawler: '', rank: '', friendLink: '' };
-        if (!parsed.favVideo) parsed.favVideo = '';
-        if (!parsed.favPodcast) parsed.favPodcast = '';
-        if (!parsed.favCreators) parsed.favCreators = [];
-        if (!parsed.setup) parsed.setup = { images: [], components: [] };
-        if (!parsed.secretMessage) parsed.secretMessage = { question: '', answer: '', message: '' };
-        if (parsed.reactionTime === undefined) parsed.reactionTime = null;
-        if (!parsed.wishlist) parsed.wishlist = [];
-        if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
-        if (!parsed.streak) parsed.streak = { count: 0, lastPlayed: null };
-        setProfileData(parsed);
+        // Merge mit Initialdaten, um fehlende Felder (z.B. durch gelöschte Module) aufzufüllen
+        setProfileData(prev => ({ ...getInitialProfileData(), ...parsed }));
       } else if (user && user.uid === targetUid) {
         setProfileNotFound(false);
         // Migration von lokalem Speicher beim ersten Cloud-Login
@@ -2608,7 +2642,25 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     );
   };
 
-  if (loading) return null;
+  if (loading) {
+    if (showLoadingError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 font-sans">
+           <div className="text-center max-w-md bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
+             <Loader2 className="animate-spin text-indigo-500 mx-auto mb-4" size={40} />
+             <h2 className="text-xl font-black text-slate-800 mb-2">Verbindungsproblem?</h2>
+             <p className="text-sm font-bold text-slate-500 mb-6">Das Laden dauert ungewöhnlich lange.</p>
+             <button onClick={() => window.location.reload()} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-indigo-700 transition-colors">Seite neu laden</button>
+           </div>
+         </div>
+      );
+    }
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-indigo-500" size={40} />
+      </div>
+    );
+  }
 
   if (profileNotFound) {
     return (
@@ -5717,6 +5769,14 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
 
     </div>
     </div>
+  );
+};
+
+const App = (props) => {
+  return (
+    <ErrorBoundary>
+      <Dashboard {...props} />
+    </ErrorBoundary>
   );
 };
 
