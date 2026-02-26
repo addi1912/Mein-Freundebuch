@@ -8,7 +8,7 @@ import {
   Calendar, Sparkles, PenTool, Hash, Mail, Linkedin, Mic, Square,
   AudioLines, Trophy, BarChart2, Hourglass, PawPrint, StickyNote,
   Backpack, Smartphone, Briefcase, HelpCircle, Images, Lightbulb,
-  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush, Coffee, LogOut
+  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush, Coffee, LogOut, Timer, Moon, Sun, Settings
 } from 'lucide-react';
 import { signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -26,6 +26,16 @@ const calculateCurrentStreak = (startDate) => {
   const start = new Date(startDate);
   const today = new Date();
   const diffTime = Math.abs(today - start);
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+const calculateDaysLeft = (targetDate) => {
+  if (!targetDate) return 0;
+  const target = new Date(targetDate);
+  const today = new Date();
+  target.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  const diffTime = target - today;
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
@@ -1396,6 +1406,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   const [profileData, setProfileData] = useState({
     name: '', bio: '', avatar: null, coverImage: null, birthdate: '', tags: [], funFact: '',
     signature: null, voiceNote: null, theme: 'indigo', customColor: '#6366f1',
+    darkMode: false,
     profileDetails: [], favSongs: [], favBooks: [], favMovies: [], bucketList: [], thisOrThat: {},
     quote: { text: '', author: '' }, games: [], travels: [],
     tierLists: [{ id: Date.now().toString(), topic: '', items: [] }],
@@ -1425,6 +1436,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     chess: { username: '', avatar: '', stats: null },
     doodle: null,
     wishlist: [],
+    countdowns: [],
     topEmojis: ['', '', '', '', ''],
     duolingo: { initialStreak: '', language: '', startDate: null },
     socials: {}, activeModules: [], lastUpdated: Date.now()
@@ -1587,6 +1599,8 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             if (!parsed.chess) parsed.chess = { username: '', avatar: '', stats: null };
             if (parsed.doodle === undefined) parsed.doodle = null;
             if (!parsed.wishlist) parsed.wishlist = [];
+            if (!parsed.countdowns) parsed.countdowns = [];
+            if (parsed.darkMode === undefined) parsed.darkMode = false;
             if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
 
             if (parsed.coverImage === undefined) parsed.coverImage = null;
@@ -1629,6 +1643,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   };
 
   const isCustomTheme = profileData.theme === 'custom';
+  const isDark = profileData.darkMode;
   const t = isCustomTheme ? {
     name: 'Eigene Farbe', text: 'theme-custom-text', textLight: 'theme-custom-text-light', bg: 'theme-custom-bg',
     bgLight: 'theme-custom-bg-light', hover: 'hover:opacity-80 transition-opacity', border: 'theme-custom-border',
@@ -1642,6 +1657,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     { id: 'bucketList', name: 'Bucket List', icon: <MapPin className="text-red-500" />, desc: 'Ziele & Träume' },
     { id: 'chess', name: 'Chess.com', icon: <Crown className="text-emerald-700" />, desc: 'Elo & Stats' },
     { id: 'coc', name: 'Clash of Clans', icon: <Swords className="text-amber-500" />, desc: 'Rathaus, Trophäen & Base' },
+    { id: 'countdowns', name: 'Countdown', icon: <Timer className="text-blue-500" />, desc: 'Tage bis zum Event' },
     { id: 'doodle', name: 'Doodle', icon: <Brush className="text-pink-500" />, desc: 'Zeichne etwas' },
     { id: 'duolingo', name: 'Duolingo Streak', icon: <Languages className="text-emerald-500" />, desc: 'Automatischer Zähler' },
     { id: 'thisOrThat', name: 'Entweder / Oder', icon: <ArrowRightLeft className="text-purple-500" />, desc: 'Schwere Fragen' },
@@ -1692,6 +1708,20 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     }
     setShowModulePicker(false);
     setModuleSearch('');
+  };
+
+  // --- Helpers for Countdowns ---
+  const addCountdown = () => {
+    setProfileData(prev => ({ ...prev, countdowns: [...(prev.countdowns || []), { id: Date.now().toString(), title: '', date: '', description: '', image: null }] }));
+  };
+  const updateCountdown = (id, field, value) => setProfileData(prev => ({ ...prev, countdowns: prev.countdowns.map(c => c.id === id ? { ...c, [field]: value } : c) }));
+  const removeCountdown = (id) => setProfileData(prev => ({ ...prev, countdowns: prev.countdowns.filter(c => c.id !== id) }));
+  const handleCountdownImageUpload = (id, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setProfileData(prev => ({ ...prev, countdowns: prev.countdowns.map(c => c.id === id ? { ...c, image: reader.result } : c) }));
+    reader.readAsDataURL(file);
   };
 
   const removeModule = (type) => {
@@ -2306,7 +2336,8 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   if (loading) return null;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 pb-32 font-sans selection:bg-indigo-100">
+    <div className={isDark ? 'dark' : ''}>
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-32 font-sans selection:bg-indigo-100">
       {isCustomTheme && (
         <style>
           {`
@@ -2315,7 +2346,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             .theme-custom-text-light { color: ${profileData.customColor}cc !important; }
             .theme-custom-border { border-color: ${profileData.customColor} !important; }
             .theme-custom-ring { --tw-ring-color: ${profileData.customColor}40 !important; }
-            .theme-custom-bg-light { background-color: ${profileData.customColor}1a !important; color: ${profileData.customColor} !important; }
+            .theme-custom-bg-light { background-color: ${profileData.customColor}${isDark ? '33' : '1a'} !important; color: ${profileData.customColor} !important; }
           `}
         </style>
       )}
@@ -2337,7 +2368,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
         `}
       </style>
 
-      <header className="bg-white/80 backdrop-blur-md border-b px-6 py-4 flex items-center justify-between sticky top-0 z-30">
+      <header className={`backdrop-blur-md border-b px-6 py-4 flex items-center justify-between sticky top-0 z-30 ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200'}`}>
         <div className="flex items-center gap-3">
           <div className={`${t.bg} p-2 rounded-xl text-white shadow-lg transition-colors`}><Smile size={24} /></div>
           <h1 className="font-black text-lg uppercase tracking-tighter">Mein Freundebuch</h1>
@@ -2369,6 +2400,23 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                       <p className="text-[10px] font-bold text-slate-400 truncate">{user.email}</p>
                     </div>
                   </div>
+                  
+                  <div className="mb-4">
+                    <p className="text-[10px] font-black uppercase text-slate-400 mb-3 tracking-widest flex items-center gap-1.5"><Settings size={10} /> Einstellungen</p>
+                    <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        {isDark ? <Moon size={16} className="text-indigo-400" /> : <Sun size={16} className="text-amber-500" />}
+                        <span className="text-xs font-bold text-slate-700">Dark Mode</span>
+                      </div>
+                      <button 
+                        onClick={() => setProfileData(prev => ({ ...prev, darkMode: !prev.darkMode }))}
+                        className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${isDark ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                      >
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isDark ? 'translate-x-4' : ''}`} />
+                      </button>
+                    </div>
+                  </div>
+
                   <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-3 bg-red-50 text-red-500 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors">
                     <LogOut size={16} /> Abmelden
                   </button>
@@ -2411,7 +2459,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 overflow-hidden relative">
           <div className={`absolute top-0 left-0 right-0 h-32 ${t.bgLight} transition-colors z-0`}>
             {profileData.coverImage && <img src={profileData.coverImage} className="w-full h-full object-cover opacity-60" alt="Banner" />}
-            <label className="absolute top-4 right-4 flex items-center justify-center cursor-pointer bg-white/80 hover:bg-white backdrop-blur-md px-3 py-2 rounded-xl text-slate-700 gap-2 text-xs font-bold shadow-sm transition-all active:scale-95 z-20 border border-white/50">
+            <label className={`absolute top-4 right-4 flex items-center justify-center cursor-pointer backdrop-blur-md px-3 py-2 rounded-xl gap-2 text-xs font-bold shadow-sm transition-all active:scale-95 z-20 border ${isDark ? 'bg-slate-900/80 hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-white/80 hover:bg-white text-slate-700 border-white/50'}`}>
               <ImagePlus size={16} /> <span className="hidden sm:inline">Banner ändern</span>
               <input type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
             </label>
@@ -2585,6 +2633,53 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                     </div>
                   ))}
                   <button onClick={addConcert} className="w-full py-4 border-2 border-dashed border-fuchsia-200 text-fuchsia-500 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm hover:bg-fuchsia-50 transition-colors"><Plus size={18} /> Erlebnis hinzufügen</button>
+                </div>
+              </section>
+            )}
+
+            {/* Countdown Modul */}
+            {modId === 'countdowns' && (
+              <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
+                <button onClick={() => removeModule('countdowns')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <h3 className="text-xl font-black uppercase text-blue-500 mb-2 flex items-center gap-2"><Timer size={20} /> Countdowns</h3>
+                <p className="text-xs font-bold text-slate-500 mb-6 leading-relaxed">
+                  Zähle die Tage bis zu deinen wichtigsten Events! Egal ob Urlaub, Geburtstag oder Weihnachten.
+                </p>
+                <div className="space-y-6">
+                  {profileData.countdowns?.map(cd => (
+                    <div key={cd.id} className="bg-slate-50 p-5 rounded-[2rem] relative border border-slate-100">
+                      <button onClick={() => removeCountdown(cd.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 p-2 z-10"><Trash2 size={16} /></button>
+                      
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <label className="w-full sm:w-24 aspect-square shrink-0 rounded-2xl flex items-center justify-center cursor-pointer shadow-sm border-2 border-dashed border-slate-300 relative overflow-hidden group bg-white hover:bg-slate-50 transition-colors">
+                          {cd.image ? ( <img src={cd.image} className="w-full h-full object-cover" alt="Event" /> ) : (
+                            <div className="flex flex-col items-center text-slate-400"><ImagePlus size={20} /><span className="text-[8px] font-black uppercase mt-1">Foto</span></div>
+                          )}
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleCountdownImageUpload(cd.id, e)} />
+                        </label>
+                        
+                        <div className="flex-1 space-y-3">
+                          <input type="text" value={cd.title} onChange={(e) => updateCountdown(cd.id, 'title', e.target.value)} placeholder="Event Name (z.B. Urlaub)..." className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 font-black focus:ring-2 focus:ring-blue-500/20 text-sm outline-none" />
+                          
+                          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20">
+                            <Calendar size={14} className="text-slate-400 shrink-0" />
+                            <input type="date" value={cd.date} onChange={(e) => updateCountdown(cd.id, 'date', e.target.value)} className="flex-1 bg-transparent border-none font-bold text-xs outline-none text-slate-600" />
+                          </div>
+
+                          <textarea value={cd.description || ''} onChange={(e) => updateCountdown(cd.id, 'description', e.target.value)} placeholder="Beschreibung (Optional)..." className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-xs outline-none focus:ring-2 focus:ring-blue-500/20 resize-none min-h-[60px]" />
+                        </div>
+                      </div>
+                      
+                      {cd.date && (
+                        <div className="mt-3 pt-3 border-t border-slate-200/50 flex justify-center">
+                           <p className="text-xs font-black text-blue-500 bg-blue-100/50 px-3 py-1.5 rounded-lg border border-blue-100">
+                             Noch {calculateDaysLeft(cd.date)} Tage! ⏳
+                           </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <button onClick={addCountdown} className="w-full py-4 border-2 border-dashed border-blue-200 text-blue-500 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm hover:bg-blue-50 transition-colors"><Plus size={18} /> Ereignis hinzufügen</button>
                 </div>
               </section>
             )}
@@ -4074,6 +4169,42 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                     </div>
                   )}
 
+                  {/* VORSCHAU: COUNTDOWNS */}
+                  {profileData.activeModules.includes('countdowns') && profileData.countdowns?.length > 0 && (
+                    <div>
+                      <p className={`text-[10px] font-black uppercase ${t.text} tracking-[0.2em] mb-4 flex items-center gap-2 border-b ${t.dashed} pb-2`}><Timer size={12}/> Countdowns</p>
+                      <div className="grid grid-cols-1 gap-4">
+                        {profileData.countdowns.map(cd => {
+                          const daysLeft = calculateDaysLeft(cd.date);
+                          return (
+                            <div key={cd.id} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden p-4 relative">
+                              <div className="flex items-start gap-4">
+                                {cd.image ? (
+                                  <img src={cd.image} className="w-20 h-20 rounded-2xl object-cover shadow-sm shrink-0 border border-slate-100" alt={cd.title} />
+                                ) : (
+                                  <div className="w-20 h-20 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-300 shrink-0 border border-blue-100"><Timer size={24} /></div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-black text-slate-800 text-sm leading-tight mb-1 truncate">{cd.title || 'Ereignis'}</h4>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{cd.date ? new Date(cd.date).toLocaleDateString('de-DE') : 'Datum fehlt'}</p>
+                                  {cd.description && <p className="text-xs font-bold text-slate-600 leading-snug line-clamp-2">{cd.description}</p>}
+                                </div>
+                              </div>
+                              
+                              <div className="mt-4 flex items-center justify-between bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">
+                                <span className="text-[10px] font-black uppercase text-blue-400">Noch</span>
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-2xl font-black text-blue-500 leading-none">{daysLeft}</span>
+                                  <span className="text-[10px] font-bold text-blue-400 uppercase">Tage</span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* VORSCHAU: TOP 5 EMOJIS */}
                   {profileData.activeModules.includes('topEmojis') && profileData.topEmojis?.some(e => e) && (
                     <div>
@@ -5069,7 +5200,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
       )}
 
       {isOwner && user && (
-        <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#F8FAFC] to-transparent z-40 pointer-events-none">
+        <div className={`fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t ${isDark ? 'from-slate-900' : 'from-slate-50'} to-transparent z-40 pointer-events-none`}>
           <div className="max-w-md mx-auto pointer-events-auto">
             <button onClick={handleSave} className={`w-full ${t.bg} text-white font-black py-5 rounded-[2.5rem] shadow-2xl flex items-center justify-center gap-3 text-lg uppercase tracking-tight active:scale-95 transition-all`}>
               <Save size={24} /> Profil speichern
@@ -5086,6 +5217,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
         </div>
       )}
 
+    </div>
     </div>
   );
 };
