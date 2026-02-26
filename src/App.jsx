@@ -8,7 +8,7 @@ import {
   Calendar, Sparkles, PenTool, Hash, Mail, Linkedin, Mic, Square,
   AudioLines, Trophy, BarChart2, Hourglass, PawPrint, StickyNote,
   Backpack, Smartphone, Briefcase, HelpCircle, Images, Lightbulb,
-  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush, Coffee, LogOut, Timer, Moon, Sun, Settings, QrCode, Copy, Share2
+  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush, Coffee, LogOut, Timer, Moon, Sun, Settings, QrCode, Copy, Share2, ChevronsUpDown
 } from 'lucide-react';
 import { signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -564,7 +564,7 @@ const PreviewSecretMessage = ({ data, themeConfig }) => {
   );
 };
 
-const ReactionGame = ({ highScore, onNewHighScore }) => {
+const ReactionGame = ({ highScore, onNewHighScore, onGamePlayed }) => {
   const [status, setStatus] = useState('idle'); // idle, waiting, ready, result, early
   const [time, setTime] = useState(null);
   const timerRef = useRef(null);
@@ -593,6 +593,7 @@ const ReactionGame = ({ highScore, onNewHighScore }) => {
       if (highScore === null || reaction < highScore) {
         onNewHighScore(reaction);
       }
+      onGamePlayed && onGamePlayed();
     }
   };
 
@@ -638,7 +639,7 @@ const ReactionGame = ({ highScore, onNewHighScore }) => {
   );
 };
 
-const PizzaClickerGame = ({ highScore, onNewHighScore }) => {
+const PizzaClickerGame = ({ highScore, onNewHighScore, onGamePlayed }) => {
   const [timeLeft, setTimeLeft] = useState(10);
   const [clicks, setClicks] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -665,6 +666,7 @@ const PizzaClickerGame = ({ highScore, onNewHighScore }) => {
       if (clicks > (highScore || 0)) {
         onNewHighScore(clicks);
       }
+      onGamePlayed && onGamePlayed();
     }
   }, [timeLeft, isPlaying, clicks, highScore, onNewHighScore]);
 
@@ -686,7 +688,7 @@ const PizzaClickerGame = ({ highScore, onNewHighScore }) => {
   );
 };
 
-const SlidePuzzleGame = ({ image }) => {
+const SlidePuzzleGame = ({ image, onGamePlayed }) => {
   const SIZE = 3;
   const [tiles, setTiles] = useState([...Array(SIZE * SIZE).keys()]);
   const [isSolved, setIsSolved] = useState(false);
@@ -734,7 +736,10 @@ const SlidePuzzleGame = ({ image }) => {
       const newTiles = [...tiles];
       [newTiles[index], newTiles[emptyIndex]] = [newTiles[emptyIndex], newTiles[index]];
       setTiles(newTiles);
-      if (newTiles.every((val, i) => val === i)) setIsSolved(true);
+      if (newTiles.every((val, i) => val === i)) {
+        setIsSolved(true);
+        onGamePlayed && onGamePlayed();
+      }
     }
   };
 
@@ -766,7 +771,7 @@ const SlidePuzzleGame = ({ image }) => {
   );
 };
 
-const MathDashGame = ({ highScore, onNewHighScore }) => {
+const MathDashGame = ({ highScore, onNewHighScore, onGamePlayed }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [problem, setProblem] = useState(null);
   const [input, setInput] = useState('');
@@ -824,6 +829,7 @@ const MathDashGame = ({ highScore, onNewHighScore }) => {
     if (streak > (highScore || 0)) {
       onNewHighScore(streak);
     }
+    onGamePlayed && onGamePlayed();
   };
 
   const handleChange = (e) => {
@@ -886,7 +892,7 @@ const MathDashGame = ({ highScore, onNewHighScore }) => {
   );
 };
 
-const WordleGame = ({ targetWord }) => {
+const WordleGame = ({ targetWord, onGamePlayed }) => {
   const [guesses, setGuesses] = useState([]);
   const [currentGuess, setCurrentGuess] = useState('');
   const [gameStatus, setGameStatus] = useState('playing'); // playing, won, lost
@@ -903,8 +909,10 @@ const WordleGame = ({ targetWord }) => {
       setCurrentGuess('');
       if (currentGuess === solution) {
         setGameStatus('won');
+        onGamePlayed && onGamePlayed();
       } else if (newGuesses.length >= MAX_GUESSES) {
         setGameStatus('lost');
+        onGamePlayed && onGamePlayed();
       }
     } else if (char === 'BACKSPACE') {
       setCurrentGuess(prev => prev.slice(0, -1));
@@ -993,7 +1001,7 @@ const WordleGame = ({ targetWord }) => {
   );
 };
 
-const CirclePainterGame = ({ highScore, onNewHighScore }) => {
+const CirclePainterGame = ({ highScore, onNewHighScore, onGamePlayed }) => {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [score, setScore] = useState(null);
@@ -1068,6 +1076,7 @@ const CirclePainterGame = ({ highScore, onNewHighScore }) => {
     const finalScore = parseFloat(calculatedScore.toFixed(1));
     setScore(finalScore);
     if (finalScore > (highScore || 0)) onNewHighScore(finalScore, canvasRef.current.toDataURL('image/png'));
+    onGamePlayed && onGamePlayed();
   };
 
   return (
@@ -1188,7 +1197,7 @@ const DoodlePad = ({ onSave, initialImage, themeConfig }) => {
   );
 };
 
-const FlagGuessingGame = ({ highScore, onNewHighScore }) => {
+const FlagGuessingGame = ({ highScore, onNewHighScore, onGamePlayed }) => {
   const [score, setScore] = useState(0);
   const [currentRound, setCurrentRound] = useState(null);
   const [gameOver, setGameOver] = useState(false);
@@ -1228,6 +1237,7 @@ const FlagGuessingGame = ({ highScore, onNewHighScore }) => {
     } else {
       setSelected('wrong');
       setGameOver(true);
+      onGamePlayed && onGamePlayed();
     }
   };
 
@@ -1363,6 +1373,41 @@ const COUNTRIES = [
 const POST_IT_COLORS = ['bg-yellow-200', 'bg-pink-200', 'bg-blue-200', 'bg-green-200', 'bg-purple-200'];
 const POST_IT_ROTATIONS = ['rotate-2', '-rotate-2', 'rotate-1', '-rotate-3', 'rotate-3', '-rotate-1'];
 
+const ScrollReveal = ({ children, className = '', ...props }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] transform ${
+        isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+      } ${className}`}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};
+
 // --- Main App Component ---
 
 const App = ({ auth, db, isConfigured, onLoginRequest }) => {
@@ -1403,6 +1448,39 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     }
   };
 
+  const handleGamePlayed = async () => {
+    if (!isOwner || !user) return;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const lastPlayed = profileData.streak?.lastPlayed || 0;
+    const lastPlayedDate = new Date(lastPlayed);
+    const lastPlayedDay = new Date(lastPlayedDate.getFullYear(), lastPlayedDate.getMonth(), lastPlayedDate.getDate()).getTime();
+
+    if (today === lastPlayedDay) return; // Heute schon gespielt
+
+    const yesterday = new Date(today - 86400000).getTime();
+    let newCount = 1;
+
+    if (lastPlayedDay === yesterday) {
+      newCount = (profileData.streak?.count || 0) + 1;
+    }
+
+    const newStreak = { count: newCount, lastPlayed: Date.now() };
+
+    setProfileData(prev => ({
+      ...prev,
+      streak: newStreak
+    }));
+    setShowStreakModal(true);
+
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user.uid);
+      await setDoc(docRef, { streak: newStreak }, { merge: true });
+    } catch (e) {
+      console.error("Auto-save streak error", e);
+    }
+  };
+
   const [profileData, setProfileData] = useState({
     name: '', bio: '', avatar: null, coverImage: null, birthdate: '', tags: [], funFact: '',
     signature: null, voiceNote: null, theme: 'indigo', customColor: '#6366f1',
@@ -1438,6 +1516,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     wishlist: [],
     countdowns: [],
     topEmojis: ['', '', '', '', ''],
+    streak: { count: 0, lastPlayed: null },
     duolingo: { initialStreak: '', language: '', startDate: null },
     socials: {}, activeModules: [], lastUpdated: Date.now()
   });
@@ -1489,7 +1568,38 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   const [sharedId, setSharedId] = useState(null);
   const [showShareAlert, setShowShareAlert] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showStreakModal, setShowStreakModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [draggedModuleIdx, setDraggedModuleIdx] = useState(null);
+
+  const handleDragStart = (e, index) => {
+    setDraggedModuleIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+    // Setze das ganze Modul als "Geisterbild" beim Ziehen, auch wenn man nur den Button greift
+    if (e.currentTarget && e.currentTarget.parentElement) {
+      e.dataTransfer.setDragImage(e.currentTarget.parentElement, 0, 0);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDragEnd = () => {
+    setDraggedModuleIdx(null);
+  };
+
+  const handleDrop = (e, index) => {
+    e.preventDefault();
+    if (draggedModuleIdx === null || draggedModuleIdx === index) return;
+    const newModules = [...profileData.activeModules];
+    const item = newModules[draggedModuleIdx];
+    newModules.splice(draggedModuleIdx, 1);
+    newModules.splice(index, 0, item);
+    setProfileData(prev => ({ ...prev, activeModules: newModules }));
+    setDraggedModuleIdx(null);
+  };
 
   useEffect(() => {
     if (!isConfigured) {
@@ -1550,6 +1660,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
         if (parsed.reactionTime === undefined) parsed.reactionTime = null;
         if (!parsed.wishlist) parsed.wishlist = [];
         if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
+        if (!parsed.streak) parsed.streak = { count: 0, lastPlayed: null };
         setProfileData(parsed);
       } else if (user.uid === targetUid) {
         // Migration von lokalem Speicher beim ersten Cloud-Login
@@ -1603,6 +1714,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             if (!parsed.countdowns) parsed.countdowns = [];
             if (parsed.darkMode === undefined) parsed.darkMode = false;
             if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
+            if (!parsed.streak) parsed.streak = { count: 0, lastPlayed: null };
 
             if (parsed.coverImage === undefined) parsed.coverImage = null;
             if (!parsed.tags) parsed.tags = [];
@@ -2482,6 +2594,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
 
       <main className="max-w-xl mx-auto p-6 space-y-8">
         {/* Das bin ich - Basis Modul */}
+        <ScrollReveal>
         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 overflow-hidden relative">
           <div className={`absolute top-0 left-0 right-0 h-32 ${t.bgLight} transition-colors z-0`}>
             {profileData.coverImage && <img src={profileData.coverImage} className="w-full h-full object-cover opacity-60" alt="Banner" />}
@@ -2622,15 +2735,29 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             </div>
           </div>
         </section>
+        </ScrollReveal>
 
         {/* Aktive Module */}
-        {profileData.activeModules.map(modId => (
-          <div key={modId} className="animate-in slide-in-from-bottom-4">
+        {profileData.activeModules.map((modId, index) => (
+          <ScrollReveal 
+            key={modId}
+            className={`relative group transition-all duration-300 ${draggedModuleIdx === index ? 'opacity-40 scale-95 ring-4 ring-indigo-500/20 rounded-[2.5rem] grayscale-[0.5]' : ''}`}
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, index)}
+          >
+            <div 
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
+              className="absolute top-[25px] right-20 z-20 p-2.5 text-slate-400 hover:text-indigo-500 cursor-grab active:cursor-grabbing transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"
+            >
+              <ChevronsUpDown size={20} />
+            </div>
             
             {/* KONZERT TAGEBUCH */}
             {modId === 'concerts' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('concerts')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('concerts')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-fuchsia-500 mb-6 flex items-center gap-2"><Ticket size={20} /> Konzerte & Festivals</h3>
                 <div className="space-y-6">
                   {profileData.concerts?.map(concert => (
@@ -2666,7 +2793,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Countdown Modul */}
             {modId === 'countdowns' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('countdowns')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('countdowns')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-blue-500 mb-2 flex items-center gap-2"><Timer size={20} /> Countdowns</h3>
                 <p className="text-xs font-bold text-slate-500 mb-6 leading-relaxed">
                   Zähle die Tage bis zu deinen wichtigsten Events! Egal ob Urlaub, Geburtstag oder Weihnachten.
@@ -2713,7 +2840,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Wishlist Modul */}
             {modId === 'wishlist' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('wishlist')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('wishlist')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-pink-500 mb-6 flex items-center gap-2"><Gift size={20} /> Wunschliste</h3>
                 <div className="space-y-6">
                   {profileData.wishlist?.map(wish => (
@@ -2752,7 +2879,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Top 5 Emojis Modul */}
             {modId === 'topEmojis' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('topEmojis')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('topEmojis')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-yellow-500 mb-6 flex items-center gap-2"><Smile size={20} /> Top 5 Emojis</h3>
                 <div className="flex flex-wrap justify-center gap-4">
                   {[0, 1, 2, 3, 4].map(i => (
@@ -2786,7 +2913,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* BRAWL STARS MODUL */}
             {modId === 'brawlStars' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('brawlStars')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('brawlStars')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-yellow-500 mb-6 flex items-center gap-2"><Skull size={20} /> Brawl Stars</h3>
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-3">
@@ -2814,7 +2941,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* LIEBLINGSVIDEO MODUL */}
             {modId === 'favVideo' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('favVideo')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('favVideo')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-red-600 mb-6 flex items-center gap-2"><Youtube size={20} /> Lieblingsvideo</h3>
                 <div className="space-y-4">
                   <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
@@ -2842,7 +2969,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* LIEBLINGSPODCAST MODUL */}
             {modId === 'favPodcast' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('favPodcast')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('favPodcast')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-green-500 mb-6 flex items-center gap-2"><Podcast size={20} /> Lieblingspodcast</h3>
                 <div className="space-y-4">
                   <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
@@ -2870,7 +2997,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* LIEBLINGS CREATOR MODUL */}
             {modId === 'favCreators' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('favCreators')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('favCreators')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-purple-600 mb-6 flex items-center gap-2"><Video size={20} /> Lieblings Creator</h3>
                 <SearchBar type="creators" onSelect={(item) => addItem('creators', item)} />
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -2888,9 +3015,9 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* REACTION TIME MODUL */}
             {modId === 'reactionTime' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('reactionTime')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('reactionTime')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-yellow-500 mb-6 flex items-center gap-2"><Zap size={20} /> Reaktionstest</h3>
-                <ReactionGame highScore={profileData.reactionTime} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, reactionTime: score }))} />
+                <ReactionGame highScore={profileData.reactionTime} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, reactionTime: score }))} onGamePlayed={handleGamePlayed} />
                 <div className="mt-4 text-center">
                   <p className="text-xs font-bold text-slate-500">Dein Highscore: <span className="text-slate-900 font-black">{profileData.reactionTime ? `${profileData.reactionTime} ms` : '-'}</span></p>
                 </div>
@@ -2900,9 +3027,9 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* MATH DASH MODUL */}
             {modId === 'mathDash' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('mathDash')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('mathDash')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-blue-500 mb-6 flex items-center gap-2"><Calculator size={20} /> Math Dash</h3>
-                <MathDashGame highScore={profileData.mathDashScore} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, mathDashScore: score }))} />
+                <MathDashGame highScore={profileData.mathDashScore} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, mathDashScore: score }))} onGamePlayed={handleGamePlayed} />
                 <div className="mt-4 text-center">
                   <p className="text-xs font-bold text-slate-500">Dein Highscore: <span className="text-slate-900 font-black">{profileData.mathDashScore || 0}</span></p>
                 </div>
@@ -2912,9 +3039,9 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* PIZZA CLICKER MODUL */}
             {modId === 'cps' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('cps')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('cps')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-orange-500 mb-6 flex items-center gap-2"><MousePointerClick size={20} /> Pizza Clicker</h3>
-                <PizzaClickerGame highScore={profileData.cpsScore} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, cpsScore: score }))} />
+                <PizzaClickerGame highScore={profileData.cpsScore} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, cpsScore: score }))} onGamePlayed={handleGamePlayed} />
                 <div className="mt-4 text-center">
                   <p className="text-xs font-bold text-slate-500">Dein Highscore: <span className="text-slate-900 font-black">{profileData.cpsScore || 0} Klicks</span></p>
                 </div>
@@ -2924,7 +3051,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* SLIDE PUZZLE MODUL */}
             {modId === 'slidePuzzle' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('slidePuzzle')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('slidePuzzle')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-indigo-500 mb-6 flex items-center gap-2"><Puzzle size={20} /> Slide Puzzle</h3>
                 
                 <div className="flex flex-col items-center">
@@ -2944,9 +3071,9 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* CIRCLE GAME MODUL */}
             {modId === 'circleGame' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('circleGame')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('circleGame')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-indigo-500 mb-6 flex items-center gap-2"><Circle size={20} /> Kreis Zeichnen</h3>
-                <CirclePainterGame highScore={profileData.circleGame?.score} onNewHighScore={(score, img) => setProfileData(prev => ({ ...prev, circleGame: { score, image: img } }))} />
+                <CirclePainterGame highScore={profileData.circleGame?.score} onNewHighScore={(score, img) => setProfileData(prev => ({ ...prev, circleGame: { score, image: img } }))} onGamePlayed={handleGamePlayed} />
                 <div className="mt-4 text-center">
                   <p className="text-xs font-bold text-slate-500">Dein Highscore: <span className="text-slate-900 font-black">{profileData.circleGame?.score || 0}%</span></p>
                 </div>
@@ -2956,9 +3083,9 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* FLAG GUESSING MODUL */}
             {modId === 'flagGuessing' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('flagGuessing')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('flagGuessing')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-indigo-500 mb-6 flex items-center gap-2"><Flag size={20} /> Flaggen Quiz</h3>
-                <FlagGuessingGame highScore={profileData.flagGuessing?.highScore} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, flagGuessing: { highScore: score } }))} />
+                <FlagGuessingGame highScore={profileData.flagGuessing?.highScore} onNewHighScore={(score) => setProfileData(prev => ({ ...prev, flagGuessing: { highScore: score } }))} onGamePlayed={handleGamePlayed} />
                 <div className="mt-4 text-center">
                   <p className="text-xs font-bold text-slate-500">Dein Highscore: <span className="text-slate-900 font-black">{profileData.flagGuessing?.highScore || 0}</span></p>
                 </div>
@@ -2968,7 +3095,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* MINECRAFT MODUL */}
             {modId === 'minecraft' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('minecraft')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('minecraft')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-emerald-600 mb-6 flex items-center gap-2"><Pickaxe size={20} /> Minecraft</h3>
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
                   <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Username</label>
@@ -3008,7 +3135,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* STEAM MODUL */}
             {modId === 'steam' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('steam')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('steam')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-sky-600 mb-6 flex items-center gap-2"><Gamepad size={20} /> Steam</h3>
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 mb-6">
                   <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Steam Username / ID</label>
@@ -3050,7 +3177,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* TWITCH MODUL */}
             {modId === 'twitch' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('twitch')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('twitch')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-purple-500 mb-6 flex items-center gap-2"><Twitch size={20} /> Twitch</h3>
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
                   <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Twitch Username</label>
@@ -3093,7 +3220,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* CHESS MODUL */}
             {modId === 'chess' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('chess')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('chess')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-emerald-700 mb-6 flex items-center gap-2"><Crown size={20} /> Chess.com</h3>
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
                   <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Username</label>
@@ -3122,7 +3249,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* DOODLE MODUL */}
             {modId === 'doodle' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('doodle')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('doodle')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-pink-500 mb-6 flex items-center gap-2"><Brush size={20} /> Doodle</h3>
                 <DoodlePad initialImage={profileData.doodle} onSave={(img) => setProfileData(prev => ({ ...prev, doodle: img }))} themeConfig={t} />
               </section>
@@ -3131,7 +3258,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* WORDLE MODUL */}
             {modId === 'wordle' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('wordle')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('wordle')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-emerald-600 mb-6 flex items-center gap-2"><Grid3x3 size={20} /> Wordle</h3>
                 <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
                   <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Lösungswort (4-7 Buchstaben)</label>
@@ -3143,7 +3270,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* SECRET MESSAGE MODUL */}
             {modId === 'secretMessage' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('secretMessage')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('secretMessage')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-slate-700 mb-2 flex items-center gap-2"><Lock size={20} /> Secret Message</h3>
                 <p className="text-xs font-bold text-slate-500 mb-6 leading-relaxed">
                   Hinterlasse eine geheime Nachricht! Nur Freunde, die die Antwort auf deine Frage wissen, können den Text lesen. (Groß-/Kleinschreibung wird ignoriert)
@@ -3174,7 +3301,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* SETUP MODUL */}
             {modId === 'setup' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('setup')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('setup')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-cyan-500 mb-6 flex items-center gap-2"><Monitor size={20} /> Mein Setup</h3>
                 
                 <div className="mb-6">
@@ -3211,7 +3338,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* HAY DAY MODUL */}
             {modId === 'hayday' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('hayday')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('hayday')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-yellow-600 mb-6 flex items-center gap-2"><Tractor size={20} /> Hay Day</h3>
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-3">
@@ -3245,7 +3372,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* CLASH OF CLANS MODUL */}
             {modId === 'coc' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('coc')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('coc')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-amber-500 mb-6 flex items-center gap-2"><Swords size={20} /> Clash of Clans</h3>
                 
                 <div className="space-y-6">
@@ -3314,7 +3441,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* BEZIEHUNG MODUL */}
             {modId === 'relationships' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('relationships')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('relationships')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-rose-500 mb-6 flex items-center gap-2"><Heart size={20} className="fill-rose-500" /> Beziehung</h3>
                 <div className="space-y-6">
                   {profileData.relationships?.map(rel => (
@@ -3352,7 +3479,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Werdegang Modul */}
             {modId === 'career' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('career')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('career')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-blue-600 mb-6 flex items-center gap-2"><Briefcase size={20} /> Werdegang</h3>
                 <div className="space-y-4 mb-8 bg-slate-50 p-5 rounded-3xl">
                   <input type="text" value={newCareerRole} onChange={(e) => setNewCareerRole(e.target.value)} placeholder="Titel / Position (z.B. Software Entwickler)..." className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20" />
@@ -3385,7 +3512,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Moodboard Modul */}
             {modId === 'moodboard' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('moodboard')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('moodboard')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-pink-400 mb-6 flex items-center gap-2"><Images size={20} /> Moodboard</h3>
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {profileData.moodboard?.map((img, i) => (
@@ -3406,7 +3533,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Screen-Time Modul */}
             {modId === 'screenTime' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('screenTime')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('screenTime')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-slate-800 mb-6 flex items-center gap-2"><Smartphone size={20} /> Screen-Time</h3>
                 <div className="flex flex-col gap-3 mb-6 bg-slate-50 p-4 rounded-3xl">
                   <div className="flex gap-2 items-center">
@@ -3460,7 +3587,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Quiz Modul */}
             {modId === 'quiz' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('quiz')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('quiz')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-indigo-500 mb-6 flex items-center gap-2"><HelpCircle size={20} /> Q&A Quiz</h3>
                 <div className="flex flex-col gap-3 mb-6 bg-slate-50 p-4 rounded-3xl">
                   <input type="text" value={newQuizQuestion} onChange={(e) => setNewQuizQuestion(e.target.value)} placeholder="Frage (z.B. Was ist mein Lieblingsessen?)" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500/20" />
@@ -3489,7 +3616,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Zitate-Wand Modul */}
             {modId === 'friendsQuotes' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('friendsQuotes')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('friendsQuotes')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-pink-500 mb-6 flex items-center gap-2"><StickyNote size={20} /> Zitate-Wand</h3>
                 <div className="flex flex-col gap-3 mb-6 bg-slate-50 p-4 rounded-3xl">
                   <textarea value={newFriendQuoteText} onChange={(e) => setNewFriendQuoteText(e.target.value)} placeholder="Wir müssen unbedingt mal wieder..." className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-pink-500/20 resize-none min-h-[80px]" />
@@ -3519,7 +3646,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Everyday Carry Modul */}
             {modId === 'everydayCarry' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('everydayCarry')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('everydayCarry')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-orange-500 mb-6 flex items-center gap-2"><Backpack size={20} /> Tascheninhalt</h3>
                 <div className="flex gap-2 mb-6 items-center">
                   <div className="relative">
@@ -3562,7 +3689,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Haustiere Modul */}
             {modId === 'pets' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('pets')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('pets')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-amber-700 mb-6 flex items-center gap-2"><PawPrint size={20} /> Meine Haustiere</h3>
                 <div className="space-y-6">
                   {profileData.pets?.map(pet => (
@@ -3597,7 +3724,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Zeitkapsel Modul */}
             {modId === 'timeCapsule' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('timeCapsule')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('timeCapsule')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-violet-500 mb-6 flex items-center gap-2"><Hourglass size={20} /> Zeitkapsel</h3>
                 <div className="space-y-4">
                   {TIME_CAPSULE_QUESTIONS.map(q => (
@@ -3621,7 +3748,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Skill Tree Modul */}
             {modId === 'skills' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('skills')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('skills')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-blue-500 mb-6 flex items-center gap-2"><BarChart2 size={20} /> Skill-Tree</h3>
                 <div className="flex flex-col gap-4 mb-6 bg-slate-50 p-4 rounded-3xl">
                   <div className="flex items-center gap-2">
@@ -3656,7 +3783,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Tier List */}
             {modId === 'tierList' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('tierList')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('tierList')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-yellow-500 mb-6 flex items-center gap-2"><Trophy size={20} /> Tier List Ranking</h3>
                 <div className="space-y-8">
                   {(profileData.tierLists || []).map((list) => (
@@ -3698,7 +3825,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Duolingo */}
             {modId === 'duolingo' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative overflow-hidden">
-                <button onClick={() => removeModule('duolingo')} className="absolute top-8 right-8 text-red-400 p-2 z-10"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('duolingo')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-emerald-500 mb-6 flex items-center gap-2"><Languages size={20} /> Duolingo Streak</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -3716,7 +3843,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Reisetagebuch */}
             {modId === 'travels' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('travels')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('travels')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-teal-500 mb-6 flex items-center gap-2"><PlaneTakeoff size={20} /> Reisetagebuch</h3>
                 <div className="flex gap-2 mb-6 bg-slate-50 p-4 rounded-3xl">
                   <input type="text" value={newTravelLocation} onChange={(e) => setNewTravelLocation(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && newTravelLocation) handleAddTravel(); }} placeholder="Ort oder Land (z.B. Paris, Japan)..." className="flex-1 bg-white border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-teal-500/10 text-sm outline-none" />
@@ -3811,7 +3938,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Bücher */}
             {modId === 'books' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('books')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('books')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-amber-600 mb-6 flex items-center gap-2"><Book size={20} /> Lieblingsbücher</h3>
                 <SearchBar type="books" onSelect={(item) => addItem('books', item)} />
                 <div className="grid grid-cols-2 gap-4">
@@ -3829,7 +3956,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Filme */}
             {modId === 'movies' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('movies')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('movies')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-rose-600 mb-6 flex items-center gap-2"><Film size={20} /> Filme & Serien</h3>
                 <SearchBar type="movies" onSelect={(item) => addItem('movies', item)} />
                 <div className="grid grid-cols-2 gap-4">
@@ -3847,7 +3974,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Musik */}
             {modId === 'songs' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('songs')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('songs')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className={`text-xl font-black uppercase ${t.text} mb-6 flex items-center gap-2`}><Music size={20} /> Lieblingsmusik</h3>
                 <SearchBar type="music" onSelect={(item) => addItem('music', item)} />
                 <div className="grid grid-cols-2 gap-4">
@@ -3866,7 +3993,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Bucket List */}
             {modId === 'bucketList' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('bucketList')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('bucketList')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-red-500 mb-6 flex items-center gap-2"><MapPin size={20} /> Bucket List</h3>
                 <div className="flex gap-2 mb-6">
                   <input type="text" value={newBucketItem} onChange={(e) => setNewBucketItem(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && newBucketItem.trim()) { setProfileData(prev => ({ ...prev, bucketList: [...(prev.bucketList || []), { id: Date.now().toString(), text: newBucketItem.trim(), completed: false }] })); setNewBucketItem(''); } }} placeholder="Neues Ziel (z.B. Fallschirmspringen...)" className="flex-1 bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-red-500/10 text-sm outline-none" />
@@ -3894,7 +4021,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Entweder / Oder */}
             {modId === 'thisOrThat' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('thisOrThat')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('thisOrThat')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-purple-500 mb-6 flex items-center gap-2"><ArrowRightLeft size={20} /> Entweder / Oder</h3>
                 <div className="space-y-3">
                   {THIS_OR_THAT_QUESTIONS.map(q => (
@@ -3914,7 +4041,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Lieblingszitat */}
             {modId === 'quote' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('quote')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('quote')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-slate-700 mb-6 flex items-center gap-2"><Quote size={20} /> Lebensmotto</h3>
                 <div className="bg-slate-50 p-6 rounded-3xl relative">
                   <Quote className="absolute top-4 left-4 text-slate-200" size={40} />
@@ -3930,7 +4057,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Gaming Modul */}
             {modId === 'games' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('games')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('games')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-sky-500 mb-6 flex items-center gap-2"><Gamepad2 size={20} /> Lieblingsspiele</h3>
                 <SearchBar type="games" onSelect={(item) => addItem('games', item)} />
                 <div className="grid grid-cols-2 gap-4 mt-4">
@@ -3955,7 +4082,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             {/* Red/Green Flags Modul */}
             {modId === 'flags' && (
               <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200/60 relative">
-                <button onClick={() => removeModule('flags')} className="absolute top-8 right-8 text-red-400 p-2"><Trash2 size={20} /></button>
+                <button onClick={() => removeModule('flags')} className="absolute top-6 right-6 z-20 p-2.5 text-slate-400 hover:text-red-500 transition-all bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 hover:scale-110 hover:shadow-md"><Trash2 size={20} /></button>
                 <h3 className="text-xl font-black uppercase text-slate-800 mb-6 flex items-center gap-2"><Flag size={20} className="text-red-500" /> Red & Green Flags</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3996,7 +4123,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
               </section>
             )}
 
-          </div>
+          </ScrollReveal>
         ))}
 
         <button onClick={() => setShowModulePicker(true)} className={`w-full ${t.bgLight} border-2 border-dashed ${t.dashed} rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-3 ${t.textLight} transition-all active:scale-98`}>
@@ -4077,6 +4204,14 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
 
               <div className="px-10">
                 <h2 className={`text-3xl font-black uppercase tracking-tighter mb-2 ${t.text}`}>{profileData.name || 'Mein Freundebuch'}</h2>
+
+                {profileData.streak?.count > 0 && (
+                  <div className="flex justify-center mb-3 animate-in zoom-in duration-500">
+                    <div className="bg-orange-50 text-orange-600 px-4 py-1.5 rounded-full font-black text-xs flex items-center gap-1.5 border border-orange-100 shadow-sm">
+                      <span className="text-base">🔥</span> {profileData.streak.count} Tage Streak
+                    </div>
+                  </div>
+                )}
 
                 {(currentAge !== null || currentZodiac) && (
                   <div className="flex items-center justify-center gap-2 mb-4">
@@ -4373,7 +4508,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                         <Puzzle size={12} /> Slide Puzzle
                         <span className={`ml-auto text-[7px] px-1.5 py-0.5 rounded-md ${t.bg} text-white tracking-normal`}>MINIGAME</span>
                       </p>
-                      <SlidePuzzleGame image={profileData.slidePuzzle.image} />
+                      <SlidePuzzleGame image={profileData.slidePuzzle.image} onGamePlayed={handleGamePlayed} />
                     </div>
                   )}
 
@@ -4384,7 +4519,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                         <Grid3x3 size={12} /> Wordle
                         <span className={`ml-auto text-[7px] px-1.5 py-0.5 rounded-md ${t.bg} text-white tracking-normal`}>MINIGAME</span>
                       </p>
-                      <WordleGame targetWord={profileData.wordle.targetWord} />
+                      <WordleGame targetWord={profileData.wordle.targetWord} onGamePlayed={handleGamePlayed} />
                     </div>
                   )}
 
@@ -5261,6 +5396,27 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                 <span className={`text-[10px] font-black uppercase ${t.textLight}`}>Teilen</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showStreakModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowStreakModal(false)}></div>
+          <div className="relative bg-white rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 flex flex-col items-center text-center border border-slate-100">
+            <button onClick={() => setShowStreakModal(false)} className="absolute top-6 right-6 p-2 bg-slate-50 rounded-full text-slate-400 hover:bg-slate-100 transition-colors">
+              <X size={20} />
+            </button>
+            
+            <div className="w-20 h-20 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center mb-4 shadow-sm animate-bounce">
+              <span className="text-4xl">🔥</span>
+            </div>
+            <h3 className="text-2xl font-black uppercase text-slate-800 mb-2">{profileData.streak?.count === 1 ? 'Streak gestartet!' : 'Streak erhöht!'}</h3>
+            <p className="text-sm font-bold text-slate-500 mb-6">
+              Du hast heute ein Minigame gespielt.<br/>
+              Aktueller Streak: <span className="text-orange-500 font-black text-lg">{profileData.streak?.count} Tage</span>
+            </p>
+            <button onClick={() => setShowStreakModal(false)} className="bg-orange-500 text-white px-8 py-3 rounded-2xl font-black uppercase text-sm hover:bg-orange-600 transition-colors shadow-lg active:scale-95">Weiter so!</button>
           </div>
         </div>
       )}

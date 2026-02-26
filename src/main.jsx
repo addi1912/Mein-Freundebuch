@@ -68,6 +68,17 @@ const Main = () => {
     
     link.href = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
     document.head.appendChild(link);
+
+    // PWA Manifest einbinden
+    const manifestLink = document.querySelector("link[rel='manifest']") || document.createElement('link');
+    manifestLink.rel = 'manifest';
+    manifestLink.href = '/manifest.json';
+    document.head.appendChild(manifestLink);
+
+    // Service Worker für PWA Support registrieren
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Fehler', err));
+    }
   }, []);
 
   return (
