@@ -1761,10 +1761,12 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   };
 
   useEffect(() => {
-    if (!isConfigured || !user) return;
+    if (!isConfigured) return;
     
-    const targetUid = sharedId || user.uid;
-    setIsOwner(user.uid === targetUid);
+    const targetUid = sharedId || (user ? user.uid : null);
+    if (!targetUid) return;
+
+    setIsOwner(!!user && user.uid === targetUid);
 
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', targetUid);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
@@ -1790,7 +1792,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
         if (!parsed.topEmojis) parsed.topEmojis = ['', '', '', '', ''];
         if (!parsed.streak) parsed.streak = { count: 0, lastPlayed: null };
         setProfileData(parsed);
-      } else if (user.uid === targetUid) {
+      } else if (user && user.uid === targetUid) {
         // Migration von lokalem Speicher beim ersten Cloud-Login
         const savedData = localStorage.getItem('mein-freundebuch-v31') || localStorage.getItem('mein-freundebuch-v30') || localStorage.getItem('mein-freundebuch-v25');
         if (savedData) {
