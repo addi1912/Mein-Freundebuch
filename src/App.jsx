@@ -1570,7 +1570,10 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [draggedModuleIdx, setDraggedModuleIdx] = useState(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [platform, setPlatform] = useState('');
 
   const handleDragStart = (e, index) => {
     setDraggedModuleIdx(index);
@@ -1631,6 +1634,48 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     const unsubscribe = onAuthStateChanged(auth, setUser);
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  useEffect(() => {
+    // Check if standalone (App is already installed)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isStandalone) return;
+
+    // Detect Platform
+    const ua = navigator.userAgent.toLowerCase();
+    let p = 'desktop';
+    if (/iphone|ipad|ipod/.test(ua)) p = 'ios';
+    else if (/android/.test(ua)) p = 'android';
+    setPlatform(p);
+
+    // Show prompt if not seen in session
+    if (!sessionStorage.getItem('installPromptSeen')) {
+      const timer = setTimeout(() => setShowInstallPrompt(true), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
+  const dismissInstallPrompt = () => {
+    setShowInstallPrompt(false);
+    sessionStorage.setItem('installPromptSeen', 'true');
+  };
 
   useEffect(() => {
     if (!isConfigured || !user) return;
@@ -2553,6 +2598,14 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                         <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${isDark ? 'translate-x-4' : ''}`} />
                       </button>
                     </div>
+                    {deferredPrompt && (
+                      <button onClick={handleInstallClick} className="w-full flex items-center justify-between bg-indigo-50 p-3 rounded-xl mt-2 group hover:bg-indigo-100 transition-colors text-left">
+                        <div className="flex items-center gap-2">
+                          <Download size={16} className="text-indigo-500" />
+                          <span className="text-xs font-bold text-indigo-700">App installieren</span>
+                        </div>
+                      </button>
+                    )}
                   </div>
 
                   <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-3 bg-red-50 text-red-500 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors">
@@ -5428,6 +5481,33 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
               <Save size={24} /> Profil speichern
             </button>
           </div>
+        </div>
+      )}
+
+      {showInstallPrompt && (
+        <div className="fixed bottom-4 left-4 right-4 sm:right-auto sm:w-auto sm:max-w-sm z-[150] animate-in slide-in-from-bottom-4 duration-500">
+           <div className={`relative p-5 rounded-2xl shadow-2xl border ${isDark ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
+             <button onClick={dismissInstallPrompt} className="absolute top-2 right-2 p-1 opacity-50 hover:opacity-100"><X size={16}/></button>
+             
+             <div className="flex gap-4 items-start">
+                <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-md">
+                    <Download size={24} />
+                </div>
+                <div className="flex-1">
+                    <h4 className="font-black uppercase text-sm mb-1">App installieren</h4>
+                    <p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-3 leading-relaxed`}>
+                        {platform === 'ios' && <>Tippe auf <span className="inline-block px-1 align-middle"><Share2 size={14} /></span> und dann auf "Zum Home-Bildschirm".</>}
+                        {platform === 'android' && !deferredPrompt && <>Tippe auf das Menü (⋮) und wähle "App installieren".</>}
+                        {(platform === 'android' || platform === 'desktop') && deferredPrompt && <>Installiere die App für schnelleren Zugriff.</>}
+                        {platform === 'desktop' && !deferredPrompt && <>Klicke auf das Installieren-Icon in der Adressleiste.</>}
+                    </p>
+                    
+                    {deferredPrompt && (
+                        <button onClick={() => { handleInstallClick(); dismissInstallPrompt(); }} className="bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase shadow-md active:scale-95 transition-transform">Jetzt installieren</button>
+                    )}
+                </div>
+             </div>
+           </div>
         </div>
       )}
 
