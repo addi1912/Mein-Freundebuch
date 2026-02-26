@@ -1581,6 +1581,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   const [platform, setPlatform] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  const [profileNotFound, setProfileNotFound] = useState(false);
 
   const handleDragStart = (e, index) => {
     setDraggedModuleIdx(index);
@@ -1771,6 +1772,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', targetUid);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
+        setProfileNotFound(false);
         const parsed = docSnap.data();
         if (!parsed.career) parsed.career = [];
         if (!parsed.screenTime) parsed.screenTime = [];
@@ -1793,6 +1795,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
         if (!parsed.streak) parsed.streak = { count: 0, lastPlayed: null };
         setProfileData(parsed);
       } else if (user && user.uid === targetUid) {
+        setProfileNotFound(false);
         // Migration von lokalem Speicher beim ersten Cloud-Login
         const savedData = localStorage.getItem('mein-freundebuch-v31') || localStorage.getItem('mein-freundebuch-v30') || localStorage.getItem('mein-freundebuch-v25');
         if (savedData) {
@@ -1862,10 +1865,14 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
             console.error("Migration Fehler", e);
           }
         }
+      } else {
+        setProfileNotFound(true);
       }
       setLoading(false);
     }, (err) => {
       console.error("Firestore Error", err);
+      // Falls ein Fehler auftritt (z.B. fehlende Berechtigung), zeigen wir "Nicht gefunden" an
+      setProfileNotFound(true);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -2602,6 +2609,21 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   };
 
   if (loading) return null;
+
+  if (profileNotFound) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6 font-sans selection:bg-indigo-100">
+        <div className="text-center max-w-md bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
+          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-400">
+            <Ghost size={40} />
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">Profil nicht gefunden</h2>
+          <p className="text-slate-500 font-bold mb-8 text-sm">Dieser Link ist ungültig, das Profil wurde gelöscht oder ist privat.</p>
+          <button onClick={() => { window.location.href = '/'; }} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs hover:bg-indigo-700 transition-colors shadow-lg active:scale-95">Eigenes Profil erstellen</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={isDark ? 'dark' : ''}>
