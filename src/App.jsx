@@ -8,7 +8,7 @@ import {
   Calendar, Sparkles, PenTool, Hash, Mail, Linkedin, Mic, Square,
   AudioLines, Trophy, BarChart2, Hourglass, PawPrint, StickyNote,
   Backpack, Smartphone, Briefcase, HelpCircle, Images, Lightbulb,
-  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush, Coffee, LogOut, Timer, Moon, Sun, Settings, QrCode, Copy, Share2, ChevronsUpDown
+  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush, Coffee, LogOut, Timer, Moon, Sun, Settings, QrCode, Copy, Share2, ChevronsUpDown, AlertTriangle
 } from 'lucide-react';
 import { signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, addDoc } from 'firebase/firestore';
@@ -1286,21 +1286,6 @@ const FlagGuessingGame = ({ highScore, onNewHighScore, onGamePlayed }) => {
           <h3 className="text-2xl font-black text-slate-800 mb-1">Falsch!</h3>
           <p className="text-sm font-bold text-slate-500 mb-6">Das war {currentRound.correct.name}.<br/>Dein Score: {score}</p>
           <button onClick={restart} className="bg-indigo-500 text-white px-8 py-3 rounded-2xl font-black uppercase text-sm hover:bg-indigo-600 transition-colors shadow-lg active:scale-95">Nochmal</button>
-        </div>
-      )}
-
-      {showReportModal && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowReportModal(false)}></div>
-          <div className="relative bg-white rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 border border-slate-100">
-            <h3 className="text-xl font-black uppercase text-slate-800 mb-2 flex items-center gap-2"><AlertTriangle className="text-red-500"/> Profil melden</h3>
-            <p className="text-xs font-bold text-slate-500 mb-4">Warum möchtest du dieses Profil melden?</p>
-            <textarea value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-red-500/20 resize-none min-h-[100px] mb-4" placeholder="Grund (z.B. Beleidigung, Spam)..."></textarea>
-            <div className="flex gap-2">
-              <button onClick={() => setShowReportModal(false)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase text-xs hover:bg-slate-200 transition-colors">Abbrechen</button>
-              <button onClick={handleReportProfile} disabled={!reportReason.trim()} className="flex-1 py-3 bg-red-500 text-white rounded-xl font-black uppercase text-xs hover:bg-red-600 transition-colors disabled:opacity-50">Senden</button>
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -5618,6 +5603,21 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                 </div>
              </div>
            </div>
+        </div>
+      )}
+
+      {showReportModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowReportModal(false)}></div>
+          <div className="relative bg-white rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 border border-slate-100">
+            <h3 className="text-xl font-black uppercase text-slate-800 mb-2 flex items-center gap-2"><AlertTriangle className="text-red-500"/> Profil melden</h3>
+            <p className="text-xs font-bold text-slate-500 mb-4">Warum möchtest du dieses Profil melden?</p>
+            <textarea value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-red-500/20 resize-none min-h-[100px] mb-4" placeholder="Grund (z.B. Beleidigung, Spam)..."></textarea>
+            <div className="flex gap-2">
+              <button onClick={() => setShowReportModal(false)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase text-xs hover:bg-slate-200 transition-colors">Abbrechen</button>
+              <button onClick={handleReportProfile} disabled={!reportReason.trim()} className="flex-1 py-3 bg-red-500 text-white rounded-xl font-black uppercase text-xs hover:bg-red-600 transition-colors disabled:opacity-50">Senden</button>
+            </div>
+          </div>
         </div>
       )}
 
