@@ -1606,6 +1606,7 @@ const Dashboard = ({ auth, db, isConfigured, onLoginRequest }) => {
   const [newGreenFlag, setNewGreenFlag] = useState('');
 
   const [user, setUser] = useState(auth?.currentUser || null);
+  const uid = user?.uid;
   const [isOwner, setIsOwner] = useState(true);
   const [sharedId, setSharedId] = useState(null);
   const [showShareAlert, setShowShareAlert] = useState(false);
@@ -1816,10 +1817,11 @@ const Dashboard = ({ auth, db, isConfigured, onLoginRequest }) => {
   useEffect(() => {
     if (!isConfigured) return;
     
-    const targetUid = sharedId || (user ? user.uid : null);
+    const targetUid = sharedId || uid;
     if (!targetUid) return;
 
-    setIsOwner(!!user && user.uid === targetUid);
+    setLoading(true);
+    setIsOwner(!!uid && uid === targetUid);
 
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', targetUid);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
@@ -1828,7 +1830,7 @@ const Dashboard = ({ auth, db, isConfigured, onLoginRequest }) => {
         const parsed = docSnap.data();
         // Merge mit Initialdaten, um fehlende Felder (z.B. durch gelöschte Module) aufzufüllen
         setProfileData(prev => ({ ...getInitialProfileData(), ...parsed }));
-      } else if (user && user.uid === targetUid) {
+      } else if (uid && uid === targetUid) {
         setProfileNotFound(false);
         // Migration von lokalem Speicher beim ersten Cloud-Login
         const savedData = localStorage.getItem('mein-freundebuch-v31') || localStorage.getItem('mein-freundebuch-v30') || localStorage.getItem('mein-freundebuch-v25');
@@ -1910,7 +1912,7 @@ const Dashboard = ({ auth, db, isConfigured, onLoginRequest }) => {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user, sharedId]);
+  }, [uid, sharedId, isConfigured]);
 
   const handleLogout = async () => {
     if (!auth) return;
