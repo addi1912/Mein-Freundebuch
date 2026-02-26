@@ -8,7 +8,7 @@ import {
   Calendar, Sparkles, PenTool, Hash, Mail, Linkedin, Mic, Square,
   AudioLines, Trophy, BarChart2, Hourglass, PawPrint, StickyNote,
   Backpack, Smartphone, Briefcase, HelpCircle, Images, Lightbulb,
-  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush, Coffee, LogOut, Timer, Moon, Sun, Settings
+  Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush, Coffee, LogOut, Timer, Moon, Sun, Settings, QrCode, Copy, Share2
 } from 'lucide-react';
 import { signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -1488,6 +1488,7 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   const [isOwner, setIsOwner] = useState(true);
   const [sharedId, setSharedId] = useState(null);
   const [showShareAlert, setShowShareAlert] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   useEffect(() => {
@@ -2212,9 +2213,17 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     }
   };
 
+  const getShareUrl = () => {
+    if (!user) return '';
+    return `${window.location.origin}${window.location.pathname}?id=${user.uid}`;
+  };
+
   const handleShare = () => {
-    if (!user) return;
-    const url = `${window.location.origin}${window.location.pathname}?id=${user.uid}`;
+    setShowShareModal(true);
+  };
+
+  const handleCopyLink = () => {
+    const url = getShareUrl();
     try {
       const el = document.createElement('textarea');
       el.value = url;
@@ -2226,6 +2235,23 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
       setTimeout(() => setShowShareAlert(false), 3000);
     } catch(e) {
       console.error("Copy failed", e);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    const url = getShareUrl();
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Mein Freundebuch',
+          text: 'Schau dir mein Freundebuch an!',
+          url: url,
+        });
+      } catch (err) {
+        console.error('Error sharing:', err);
+      }
+    } else {
+      handleCopyLink();
     }
   };
 
@@ -5194,6 +5220,46 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                   <span>Buy me a coffee</span>
                 </a>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showShareModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowShareModal(false)}></div>
+          <div className="relative bg-white rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 flex flex-col items-center text-center border border-slate-100">
+            <button onClick={() => setShowShareModal(false)} className="absolute top-6 right-6 p-2 bg-slate-50 rounded-full text-slate-400 hover:bg-slate-100 transition-colors">
+              <X size={20} />
+            </button>
+            
+            <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+              <QrCode size={32} />
+            </div>
+            <h3 className="text-xl font-black uppercase text-slate-800 mb-2">Profil Teilen</h3>
+            <p className="text-xs font-bold text-slate-500 mb-6">Lass deine Freunde deinen QR-Code scannen.</p>
+            
+            <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 shadow-sm mb-8">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getShareUrl())}&bgcolor=ffffff`} 
+                alt="QR Code" 
+                className="w-48 h-48 rounded-xl mix-blend-multiply"
+              />
+            </div>
+
+            <div className="flex gap-3 w-full">
+              <button onClick={handleCopyLink} style={isCustomTheme ? { borderColor: profileData.customColor + '40' } : {}} className={`flex-1 flex flex-col items-center justify-center gap-2 ${t.bgLight} ${t.hover} p-4 rounded-2xl transition-colors group border ${isCustomTheme ? '' : t.dashed.replace('border-dashed', '')}`}>
+                <div style={isCustomTheme ? { borderColor: profileData.customColor + '40' } : {}} className={`bg-white p-3 rounded-xl shadow-sm ${t.text} group-hover:scale-110 transition-transform border ${isCustomTheme ? '' : t.dashed.replace('border-dashed', '')}`}>
+                  <Copy size={20} />
+                </div>
+                <span className={`text-[10px] font-black uppercase ${t.textLight}`}>Kopieren</span>
+              </button>
+              <button onClick={handleNativeShare} style={isCustomTheme ? { borderColor: profileData.customColor + '40' } : {}} className={`flex-1 flex flex-col items-center justify-center gap-2 ${t.bgLight} ${t.hover} p-4 rounded-2xl transition-colors group border ${isCustomTheme ? '' : t.dashed.replace('border-dashed', '')}`}>
+                <div style={isCustomTheme ? { borderColor: profileData.customColor + '40' } : {}} className={`bg-white p-3 rounded-xl shadow-sm ${t.text} group-hover:scale-110 transition-transform border ${isCustomTheme ? '' : t.dashed.replace('border-dashed', '')}`}>
+                  <Share2 size={20} />
+                </div>
+                <span className={`text-[10px] font-black uppercase ${t.textLight}`}>Teilen</span>
+              </button>
             </div>
           </div>
         </div>
