@@ -11,7 +11,7 @@ import {
   Swords, Shield, Link as LinkIcon, Tractor, Ticket, Database, Flag, Gift, Skull, Youtube, Podcast, Video, Twitch, Monitor, Lock, Unlock, Key, Zap, MousePointerClick, Puzzle, Calculator, Grid3x3, Circle, Pickaxe, Gamepad, Crown, Brush, Coffee, LogOut, Timer, Moon, Sun, Settings, QrCode, Copy, Share2, ChevronsUpDown
 } from 'lucide-react';
 import { signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, addDoc } from 'firebase/firestore';
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'mein-freundebuch';
 
@@ -1288,6 +1288,21 @@ const FlagGuessingGame = ({ highScore, onNewHighScore, onGamePlayed }) => {
           <button onClick={restart} className="bg-indigo-500 text-white px-8 py-3 rounded-2xl font-black uppercase text-sm hover:bg-indigo-600 transition-colors shadow-lg active:scale-95">Nochmal</button>
         </div>
       )}
+
+      {showReportModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowReportModal(false)}></div>
+          <div className="relative bg-white rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 border border-slate-100">
+            <h3 className="text-xl font-black uppercase text-slate-800 mb-2 flex items-center gap-2"><AlertTriangle className="text-red-500"/> Profil melden</h3>
+            <p className="text-xs font-bold text-slate-500 mb-4">Warum möchtest du dieses Profil melden?</p>
+            <textarea value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-red-500/20 resize-none min-h-[100px] mb-4" placeholder="Grund (z.B. Beleidigung, Spam)..."></textarea>
+            <div className="flex gap-2">
+              <button onClick={() => setShowReportModal(false)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase text-xs hover:bg-slate-200 transition-colors">Abbrechen</button>
+              <button onClick={handleReportProfile} disabled={!reportReason.trim()} className="flex-1 py-3 bg-red-500 text-white rounded-xl font-black uppercase text-xs hover:bg-red-600 transition-colors disabled:opacity-50">Senden</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1573,7 +1588,14 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [draggedModuleIdx, setDraggedModuleIdx] = useState(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  const [adminProfiles, setAdminProfiles] = useState([]);
+  const [adminReports, setAdminReports] = useState([]);
+  const [adminTab, setAdminTab] = useState('profiles');
+  const [isAdminLoading, setIsAdminLoading] = useState(false);
   const [platform, setPlatform] = useState('');
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
   const handleDragStart = (e, index) => {
     setDraggedModuleIdx(index);
@@ -1602,6 +1624,82 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     newModules.splice(index, 0, item);
     setProfileData(prev => ({ ...prev, activeModules: newModules }));
     setDraggedModuleIdx(null);
+  };
+
+  const handleOpenAdmin = async () => {
+    setShowProfileMenu(false);
+    setShowAdminDashboard(true);
+    setIsAdminLoading(true);
+    try {
+      const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'profiles'));
+      const profiles = [];
+      querySnapshot.forEach((doc) => {
+        profiles.push({ id: doc.id, ...doc.data() });
+      });
+      setAdminProfiles(profiles);
+
+      const reportsSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'reports'));
+      const reports = [];
+      reportsSnap.forEach((doc) => {
+        reports.push({ id: doc.id, ...doc.data() });
+      });
+      setAdminReports(reports);
+    } catch (e) {
+      console.error("Error fetching profiles", e);
+    } finally {
+      setIsAdminLoading(false);
+    }
+  };
+
+  const handleDeleteReport = async (reportId) => {
+    if (!window.confirm('Möchtest du diese Meldung löschen?')) return;
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'reports', reportId));
+      setAdminReports(prev => prev.filter(r => r.id !== reportId));
+    } catch (e) {
+      console.error("Delete report error", e);
+    }
+  };
+
+  const handleReportProfile = async () => {
+    if (!reportReason.trim() || !sharedId) return;
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'reports'), {
+        targetId: sharedId,
+        targetName: profileData.name || 'Unbenannt',
+        reason: reportReason.trim(),
+        timestamp: Date.now(),
+        reporter: user ? user.uid : 'anonymous'
+      });
+      setShowReportModal(false);
+      setReportReason('');
+      alert('Meldung gesendet. Danke!');
+    } catch (e) {
+      console.error("Report error", e);
+    }
+  };
+
+  const handleDeleteProfile = async (profileId) => {
+    if (!window.confirm('Möchtest du dieses Profil wirklich unwiderruflich löschen?')) return;
+    
+    // Wenn man sein eigenes Profil löscht, auch lokal aufräumen
+    if (user && user.uid === profileId) {
+      localStorage.removeItem('mein-freundebuch-v31');
+      localStorage.removeItem('mein-freundebuch-v30');
+      localStorage.removeItem('mein-freundebuch-v25');
+    }
+
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', profileId));
+      setAdminProfiles(prev => prev.filter(p => p.id !== profileId));
+      
+      if (user && user.uid === profileId) {
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error("Delete error", e);
+      alert("Fehler beim Löschen");
+    }
   };
 
   useEffect(() => {
@@ -2607,6 +2705,12 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                       </button>
                     )}
                   </div>
+
+                  {user.email === 'schwingnorbert@gmail.com' && (
+                    <button onClick={handleOpenAdmin} className="w-full flex items-center gap-2 px-4 py-3 text-rose-600 rounded-xl font-bold text-xs hover:bg-rose-50 transition-colors mb-2">
+                      <Shield size={16} /> Admin Dashboard
+                    </button>
+                  )}
 
                   <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-3 bg-red-50 text-red-500 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors">
                     <LogOut size={16} /> Abmelden
@@ -5402,6 +5506,12 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                 <button onClick={() => { window.location.href = window.location.pathname; }} className={`mt-4 w-full py-5 ${t.bg} text-white rounded-3xl font-black uppercase text-xs active:scale-95 transition-all shadow-xl print-hide`}>Erstelle dein eigenes Freundebuch</button>
               )}
 
+              {!isOwner && (
+                <button onClick={() => setShowReportModal(true)} className="mt-8 text-[10px] font-bold text-slate-400 uppercase hover:text-red-500 transition-colors flex items-center justify-center gap-1 mx-auto print-hide">
+                  <AlertTriangle size={12} /> Profil melden
+                </button>
+              )}
+
               <div className="flex justify-center mt-6 print-hide">
                 <a href="https://buymeacoffee.com/adrian_shwg" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 bg-[#FFDD00] text-[#000000] px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
                   <Coffee size={16} strokeWidth={2.5} />
@@ -5508,6 +5618,68 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
                 </div>
              </div>
            </div>
+        </div>
+      )}
+
+      {showAdminDashboard && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAdminDashboard(false)}></div>
+          <div className="relative bg-white rounded-[2.5rem] p-8 w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95 border border-slate-100">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-black uppercase text-slate-800 flex items-center gap-2"><Shield className="text-rose-500"/> Admin Dashboard</h3>
+              <button onClick={() => setShowAdminDashboard(false)} className="p-2 bg-slate-50 rounded-full text-slate-400 hover:bg-slate-100 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex gap-2 mb-4 bg-slate-50 p-1 rounded-2xl">
+              <button onClick={() => setAdminTab('profiles')} className={`flex-1 py-2 rounded-xl text-xs font-black uppercase transition-all ${adminTab === 'profiles' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}>Profile ({adminProfiles.length})</button>
+              <button onClick={() => setAdminTab('reports')} className={`flex-1 py-2 rounded-xl text-xs font-black uppercase transition-all ${adminTab === 'reports' ? 'bg-white shadow-sm text-red-500' : 'text-slate-400 hover:text-slate-600'}`}>Meldungen ({adminReports.length})</button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto no-scrollbar space-y-4">
+              {isAdminLoading ? (
+                <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-400" /></div>
+              ) : adminTab === 'profiles' ? (
+                adminProfiles.map(p => (
+                  <div key={p.id} className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <img src={p.avatar || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y"} className="w-10 h-10 rounded-full object-cover bg-white" alt="" />
+                      <div>
+                        <p className="font-black text-sm text-slate-800">{p.name || 'Unbenannt'}</p>
+                        <p className="text-[10px] font-bold text-slate-400">{p.id}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => { window.open(`?id=${p.id}`, '_blank'); }} className="p-2 bg-white text-indigo-500 rounded-xl shadow-sm hover:bg-indigo-50" title="Ansehen"><Eye size={16} /></button>
+                      <button onClick={() => handleDeleteProfile(p.id)} className="p-2 bg-white text-red-500 rounded-xl shadow-sm hover:bg-red-50" title="Löschen"><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                adminReports.map(r => (
+                  <div key={r.id} className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-black text-sm text-red-900">Meldung zu: {r.targetName}</p>
+                        <p className="text-[10px] font-bold text-red-400">{new Date(r.timestamp).toLocaleString()}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => { window.open(`?id=${r.targetId}`, '_blank'); }} className="p-2 bg-white text-indigo-500 rounded-xl shadow-sm hover:bg-indigo-50" title="Profil ansehen"><Eye size={16} /></button>
+                        <button onClick={() => handleDeleteProfile(r.targetId)} className="p-2 bg-white text-red-500 rounded-xl shadow-sm hover:bg-red-50" title="Profil löschen"><Trash2 size={16} /></button>
+                        <button onClick={() => handleDeleteReport(r.id)} className="p-2 bg-white text-slate-400 rounded-xl shadow-sm hover:bg-slate-50" title="Meldung löschen (Ignorieren)"><X size={16} /></button>
+                      </div>
+                    </div>
+                    <p className="text-xs font-bold text-slate-700 bg-white/50 p-2 rounded-xl">{r.reason}</p>
+                    <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase">ID: {r.targetId}</p>
+                  </div>
+                ))
+              )}
+              {!isAdminLoading && ((adminTab === 'profiles' && adminProfiles.length === 0) || (adminTab === 'reports' && adminReports.length === 0)) && (
+                <p className="text-center text-slate-400 font-bold text-sm">Keine Einträge gefunden.</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
