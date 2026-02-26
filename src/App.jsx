@@ -1393,16 +1393,6 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     }
   };
 
-  const handleLogout = async () => {
-    if (!auth) return;
-    try {
-      await signOut(auth);
-      window.location.reload(); // Seite neu laden, um App zurückzusetzen
-    } catch (error) {
-      console.error("Logout Error", error);
-    }
-  };
-
   const [profileData, setProfileData] = useState({
     name: '', bio: '', avatar: null, coverImage: null, birthdate: '', tags: [], funFact: '',
     signature: null, voiceNote: null, theme: 'indigo', customColor: '#6366f1',
@@ -1623,6 +1613,20 @@ const App = ({ auth, db, isConfigured, onLoginRequest }) => {
     });
     return () => unsubscribe();
   }, [user, sharedId]);
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    try {
+      if (user && isOwner && !loading) {
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user.uid);
+        await setDoc(docRef, { ...profileData, lastUpdated: Date.now() });
+      }
+      await signOut(auth);
+      window.location.reload();
+    } catch (error) {
+      console.error("Logout Error", error);
+    }
+  };
 
   const isCustomTheme = profileData.theme === 'custom';
   const t = isCustomTheme ? {
