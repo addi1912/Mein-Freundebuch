@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import LandingPage from './LandingPage.jsx'
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -41,15 +41,34 @@ const Main = () => {
     
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      setShowLoginModal(false);
-      setShowLanding(false);
+      // Auf Mobilgeräten ist Redirect zuverlässiger als Popup
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+        setShowLoginModal(false);
+        setShowLanding(false);
+      }
     } catch (error) {
       console.error("Login abgebrochen oder fehlgeschlagen", error);
     }
   };
 
   useEffect(() => {
+    // Prüfen ob wir von einem Redirect Login zurückkommen (für Mobile)
+    if (auth) {
+      getRedirectResult(auth).then((result) => {
+        if (result) {
+          setShowLoginModal(false);
+          setShowLanding(false);
+        }
+      }).catch((error) => {
+        console.error("Redirect Login Fehler", error);
+      });
+    }
+
     document.documentElement.lang = 'de'; // SEO: Sprache auf Deutsch setzen
 
     const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
